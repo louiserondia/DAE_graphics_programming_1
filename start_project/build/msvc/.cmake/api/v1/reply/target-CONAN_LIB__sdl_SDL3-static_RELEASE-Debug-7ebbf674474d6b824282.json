@@ -1,0 +1,93 @@
+{
+	"abstract" : true,
+	"artifacts" : 
+	[
+		{
+			"path" : "CONAN_LIB::sdl_SDL3-static_RELEASE-NOTFOUND"
+		}
+	],
+	"backtrace" : 8,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"conan_package_library_targets",
+			"include",
+			"find_package"
+		],
+		"files" : 
+		[
+			"build/msvc/generators/cmakedeps_macros.cmake",
+			"build/msvc/generators/SDL3-Target-release.cmake",
+			"build/msvc/generators/SDL3Targets.cmake",
+			"build/msvc/generators/SDL3Config.cmake",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 4
+			},
+			{
+				"command" : 3,
+				"file" : 4,
+				"line" : 71,
+				"parent" : 0
+			},
+			{
+				"file" : 3,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 3,
+				"line" : 16,
+				"parent" : 2
+			},
+			{
+				"file" : 2,
+				"parent" : 3
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 28,
+				"parent" : 4
+			},
+			{
+				"file" : 1,
+				"parent" : 5
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 23,
+				"parent" : 6
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 73,
+				"parent" : 7
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 10
+	},
+	"id" : "CONAN_LIB::sdl_SDL3-static_RELEASE::@6890427a1f51a3e7e1df",
+	"imported" : true,
+	"local" : true,
+	"name" : "CONAN_LIB::sdl_SDL3-static_RELEASE",
+	"nameOnDisk" : "CONAN_LIB::sdl_SDL3-static_RELEASE-NOTFOUND",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "STATIC_LIBRARY"
+}

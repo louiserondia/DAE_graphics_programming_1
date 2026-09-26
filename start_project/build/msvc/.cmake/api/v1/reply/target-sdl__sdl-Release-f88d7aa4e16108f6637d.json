@@ -1,0 +1,152 @@
+{
+	"abstract" : true,
+	"backtrace" : 5,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"include",
+			"find_package",
+			"set_property"
+		],
+		"files" : 
+		[
+			"build/msvc/generators/SDL3Targets.cmake",
+			"build/msvc/generators/SDL3Config.cmake",
+			"CMakeLists.txt",
+			"build/msvc/generators/SDL3-Target-debug.cmake",
+			"build/msvc/generators/SDL3-Target-release.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 71,
+				"parent" : 0
+			},
+			{
+				"file" : 1,
+				"parent" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 16,
+				"parent" : 2
+			},
+			{
+				"file" : 0,
+				"parent" : 3
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 17,
+				"parent" : 4
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 28,
+				"parent" : 4
+			},
+			{
+				"file" : 3,
+				"parent" : 6
+			},
+			{
+				"command" : 3,
+				"file" : 3,
+				"line" : 160,
+				"parent" : 7
+			},
+			{
+				"command" : 3,
+				"file" : 3,
+				"line" : 161,
+				"parent" : 7
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 28,
+				"parent" : 4
+			},
+			{
+				"file" : 4,
+				"parent" : 10
+			},
+			{
+				"command" : 3,
+				"file" : 4,
+				"line" : 160,
+				"parent" : 11
+			},
+			{
+				"command" : 3,
+				"file" : 4,
+				"line" : 161,
+				"parent" : 11
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 10
+	},
+	"id" : "sdl::sdl::@6890427a1f51a3e7e1df",
+	"imported" : true,
+	"interfaceCompileDependencies" : 
+	[
+		{
+			"backtrace" : 8,
+			"id" : "SDL3::SDL3::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "SDL3::Headers::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 12,
+			"id" : "SDL3::SDL3::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 13,
+			"id" : "SDL3::Headers::@6890427a1f51a3e7e1df"
+		}
+	],
+	"interfaceLinkLibraries" : 
+	[
+		{
+			"backtrace" : 8,
+			"id" : "SDL3::SDL3::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "SDL3::Headers::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 12,
+			"id" : "SDL3::SDL3::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 13,
+			"id" : "SDL3::Headers::@6890427a1f51a3e7e1df"
+		}
+	],
+	"local" : true,
+	"name" : "sdl::sdl",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "INTERFACE_LIBRARY"
+}

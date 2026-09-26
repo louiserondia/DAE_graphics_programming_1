@@ -1,0 +1,68 @@
+{
+    "version": 3,
+    "vendor": {
+        "conan": {}
+    },
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 15,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "conan-windows-msvc",
+            "displayName": "'conan-windows-msvc' config",
+            "description": "'conan-windows-msvc' configure using 'Ninja Multi-Config' generator",
+            "generator": "Ninja Multi-Config",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF",
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_CXX_COMPILER": "cl"
+            },
+            "toolset": {
+                "value": "v145",
+                "strategy": "external"
+            },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "toolchainFile": "generators\\conan_toolchain.cmake",
+            "binaryDir": "C:\\Users\\Louise\\Downloads\\start_project\\start_project\\build\\msvc"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "conan-windows-msvc-debug",
+            "configurePreset": "conan-windows-msvc",
+            "configuration": "Debug",
+            "jobs": 20
+        },
+        {
+            "name": "conan-windows-msvc-release",
+            "configurePreset": "conan-windows-msvc",
+            "configuration": "Release",
+            "jobs": 20
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "conan-windows-msvc-debug",
+            "configurePreset": "conan-windows-msvc",
+            "configuration": "Debug",
+            "execution": {
+                "jobs": 20
+            }
+        },
+        {
+            "name": "conan-windows-msvc-release",
+            "configurePreset": "conan-windows-msvc",
+            "configuration": "Release",
+            "execution": {
+                "jobs": 20
+            }
+        }
+    ]
+}

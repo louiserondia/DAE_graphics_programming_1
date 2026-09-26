@@ -1,0 +1,11 @@
+{
+	"Configs" : 
+	[
+		"Debug"
+	],
+	"InstallScripts" : 
+	[
+		"C:/Users/Louise/Downloads/start_project/start_project/build/msvc/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
