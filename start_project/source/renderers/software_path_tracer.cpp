@@ -53,8 +53,6 @@ void SoftwarePathTracer::Render()
 			shading_input.world_normal = (closest_hit_record.ray.origin - test_sphere.origin)
 				/ (closest_hit_record.ray.origin - test_sphere.origin).Magnitude();
 
-			//shading_input.world_normal = ((view_ray.origin + closest_hit_record.t * view_ray.direction) - test_sphere.origin)
-			//	/ ((view_ray.origin + closest_hit_record.t * view_ray.direction) - test_sphere.origin).Magnitude();
 
 			VisualizationMode vismod{ context_->debug_params.visualization_mode };
 			ColorRgba final_color{};
@@ -62,13 +60,11 @@ void SoftwarePathTracer::Render()
 			if (did_hit) {
 				if (vismod == VisualizationMode::kDepth) {
 					const float max_depth{ 100.f };
-					const float yo{ closest_hit_record.t / max_depth };
-					//std::cout << yo << std::endl;
-					const float scaled_t{ 1.f - std::clamp(yo, 0.f, 1.f) };
+					const float scaled_t{ 1.f - std::clamp(closest_hit_record.t / max_depth, 0.f, 1.f) };
 					final_color = { scaled_t, scaled_t, scaled_t };
 				}
 				else if (vismod == VisualizationMode::kNone) {
-					final_color = { float(px), float(py), 1.f };
+					final_color = { 1.f, 0.f, 0.f };
 				}
 				else if (vismod == VisualizationMode::kNormals) {
 					const Vector3& n{ shading_input.world_normal };
