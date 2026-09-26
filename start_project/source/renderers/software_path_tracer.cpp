@@ -31,6 +31,12 @@ void SoftwarePathTracer::Render()
 	const SurfaceInfo& surface_info = context_->surface_info;
 	const float aspectRatio{ float(surface_info.width) / float(surface_info.height) };
 
+	const Sphere sphere{ { 0.f, 0.f, 100.f }, 50.f };
+	const Plane iplane{ {0.f, -50.f, 0.f}, {0.f, 1.f, 0.f} };
+	const Plane fplane{ {0.f, -50.f, 0.f}, {0.f, 1.f, 0.f}, true, Vector2{100.f, 100.f} };
+
+	const Plane& plane{ fplane };
+
 	for (uint32_t py = 0; py < surface_info.height; ++py)
 	{
 		for (uint32_t px = 0; px < surface_info.width; ++px)
@@ -38,21 +44,18 @@ void SoftwarePathTracer::Render()
 
 			const float x{ (2.f * ((px + 0.5f) / surface_info.width) - 1.f) * aspectRatio };
 			const float y{ (1.f - 2.f * ((py + 0.5f) / surface_info.height)) };
-			(void)aspectRatio;
 
 			Vector3 ray_direction{ float(x), float(y), 1.f };
 			ray_direction.Normalize();
 
 			RayHitRecord closest_hit_record{};
-			const Sphere test_sphere{ { 0.f, 0.f, 100.f }, 50.f };
 			Ray view_ray{ Vector3{ 0.f, 0.f, 0.f }, ray_direction };
-			bool did_hit{ HitTestSphere(test_sphere, view_ray, closest_hit_record) };
+			//bool did_hit{ HitTestSphere(sphere, view_ray, closest_hit_record) };
+			bool did_hit{ HitTestPlane(plane, view_ray, closest_hit_record) };
 
 			ShadingInput shading_input{};
 			shading_input.world_position = closest_hit_record.ray.origin;
-			shading_input.world_normal = (closest_hit_record.ray.origin - test_sphere.origin)
-				/ (closest_hit_record.ray.origin - test_sphere.origin).Magnitude();
-
+			shading_input.world_normal = plane.normal;
 
 			VisualizationMode vismod{ context_->debug_params.visualization_mode };
 			ColorRgba final_color{};
