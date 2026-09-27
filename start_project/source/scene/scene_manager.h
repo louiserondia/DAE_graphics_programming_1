@@ -13,6 +13,7 @@
 #include <matrix.h>
 #include <texture.h>
 #include <factory.h>
+#include <intersections.h>
 
 namespace gfx
 {
@@ -26,22 +27,22 @@ namespace gfx
 	struct EnvironmentMap final
 	{
 		Texture texture;
-		float intensity {1.f};
-		float rotation_degrees {0.f};
-		bool flip_horizontal {false};
+		float intensity{ 1.f };
+		float rotation_degrees{ 0.f };
+		bool flip_horizontal{ false };
 	};
 
 	struct Scene
 	{
-		Factory<Primitive> primitives_factory { Factory<Primitive>() };
-		Factory<Material> materials_factory { Factory<Material>() };
-		Factory<Texture> textures_factory { Factory<Texture>() };
-		Factory<Light> lights_factory { Factory<Light>() };
-		std::vector<SceneObject> objects { };
-		Camera camera { };
-		ColorRgba background_color { ColorRgba::Black() };
-		std::optional<EnvironmentMap> environment_map { };
-		bool scene_changed { true };
+		Factory<Primitive> primitives_factory{ Factory<Primitive>() };
+		Factory<Material> materials_factory{ Factory<Material>() };
+		Factory<Texture> textures_factory{ Factory<Texture>() };
+		Factory<Light> lights_factory{ Factory<Light>() };
+		std::vector<SceneObject> objects{ };
+		Camera camera{ };
+		ColorRgba background_color{ ColorRgba::Black() };
+		std::optional<EnvironmentMap> environment_map{ };
+		bool scene_changed{ true };
 
 		Scene() = default;
 		virtual ~Scene() = default;
@@ -72,6 +73,53 @@ namespace gfx
 						static_cast<const TriangleMesh*>(p)->indices.size() / 3);
 			}
 			return count;
+		}
+
+		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const
+		{
+			(void)ignore_record;
+			RayHitRecord temp_hit{};
+			bool did_hit{};
+
+			for (size_t i = 0; i < primitives_factory.GetAll().size(); ++i)
+			{
+				Primitive* object = primitives_factory.GetAll()[i];
+				did_hit = false;
+				switch (object->type)
+				{
+				case PrimitiveType::kSphere:
+				{
+					Sphere* sphere = dynamic_cast<Sphere*>(object);
+
+					did_hit = HitTestSphere(*sphere, ray, temp_hit);
+					break;
+				}
+				case PrimitiveType::kPlane:
+				{
+					Plane* plane = dynamic_cast<Plane*>(object);
+
+					did_hit = HitTestPlane(*plane, ray, temp_hit);
+					break;
+				}
+				case PrimitiveType::kTriangle:
+				case PrimitiveType::kTriangleMesh:
+				case PrimitiveType::kNone:
+				default:
+					break;
+				}
+				if (did_hit && temp_hit.t < closest_hit.t)
+				{
+
+					closest_hit = temp_hit;
+					closest_hit.object_index = int(i);
+				}
+			}
+			if (closest_hit.t < ray.max)
+			{
+				return true;
+			}
+
+			return false;
 		}
 	};
 

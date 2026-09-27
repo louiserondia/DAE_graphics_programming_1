@@ -53,12 +53,14 @@ namespace gfx
 		if (t0 > ray.min && t0 < ray.max) {
 			hit_record.t = t0;
 			hit_record.ray.origin = ray.origin + t0 * ray.direction;
+			hit_record.ray.direction = (ray.origin - sphere.origin) / (ray.origin - sphere.origin).Magnitude();
 			return true;
 		}
 		if (t1 > ray.min && t1 < ray.max) // we're "inside" the sphere
 		{
 			hit_record.t = t1;
 			hit_record.ray.origin = ray.origin + t1 * ray.direction;
+			hit_record.ray.direction = (ray.origin - sphere.origin) / (ray.origin - sphere.origin).Magnitude();
 			return true;
 		}
 
@@ -80,6 +82,7 @@ namespace gfx
 			hit_record.ray = ray;
 			hit_record.t = t;
 			hit_record.ray.origin = ray.origin + t * ray.direction;
+			hit_record.ray.direction = plane.normal; // i should keep direction but otherwise how to send the plane's normal if i dont keep the object hit
 
 			if (plane.half_extent.has_value()) // is finite
 			{
@@ -90,12 +93,6 @@ namespace gfx
 				const float b_prime{ Vector3::Dot(p, b) };
 				if (std::abs(t_prime) <= plane.half_extent.value().x
 					&& std::abs(b_prime) <= plane.half_extent.value().y)
-					return true;
-				return false;
-				
-				// without rotation, when to use it ???
-				if (std::abs(hit_record.ray.origin.x) <= plane.half_extent.value().x
-					&& std::abs(hit_record.ray.origin.y) <= plane.half_extent.value().y)
 					return true;
 				return false;
 			}
