@@ -80,8 +80,6 @@ namespace gfx
 
 		const Matrix& GetView()
 		{
-			//TODO: create view matrix
-			//const Vector4 x{}
 			view_ = Matrix::CreateLookAtLH(position_, forward_, up_);
 
 			(void)fov_angle_;

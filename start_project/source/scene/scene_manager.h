@@ -81,27 +81,31 @@ namespace gfx
 			RayHitRecord temp_hit{};
 			bool did_hit{};
 			closest_hit.t = std::numeric_limits<float>::max();
+			Ray final_ray{ ray };
 
-			for (size_t i = 0; i < primitives_factory.GetAll().size(); i++)
+			for (size_t i{}; i < objects.size(); i++)
 			{
-				Primitive* object = primitives_factory.GetAll()[i];
 				did_hit = false;
 				temp_hit = RayHitRecord{};
+				Primitive* primitive = primitives_factory.Get(objects.at(i).primitive_index);
 
-				switch (object->type)
+				if (objects.at(i).instance_transformation.has_value())
+					final_ray = objects.at(i).instance_transformation.value().TransformRay(ray);
+
+				switch (primitive->type)
 				{
 				case PrimitiveType::kSphere:
 				{
-					Sphere* sphere = static_cast<Sphere*>(object);
+					Sphere* sphere = static_cast<Sphere*>(primitive);
 
-					did_hit = HitTestSphere(*sphere, ray, temp_hit);
+					did_hit = HitTestSphere(*sphere, final_ray, temp_hit);
 					break;
 				}
 				case PrimitiveType::kPlane:
 				{
-					Plane* plane = static_cast<Plane*>(object);
+					Plane* plane = static_cast<Plane*>(primitive);
 
-					did_hit = HitTestPlane(*plane, ray, temp_hit);
+					did_hit = HitTestPlane(*plane, final_ray, temp_hit);
 					break;
 				}
 				case PrimitiveType::kTriangle:
@@ -110,6 +114,7 @@ namespace gfx
 				default:
 					break;
 				}
+
 				if (did_hit && temp_hit.t < closest_hit.t)
 				{
 					closest_hit = temp_hit;
