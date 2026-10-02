@@ -62,6 +62,8 @@ void SoftwarePathTracer::Render()
 	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
 
 	Ray view_ray{ scene->camera.GetPosition() };
+	Matrix viewMatrix{ scene->camera.GetView() };
+	Matrix inverseViewMatrix{ viewMatrix.GetInverse() };
 
 	for (uint32_t py = 0; py < height; ++py)
 	{
@@ -70,9 +72,9 @@ void SoftwarePathTracer::Render()
 			const float x{ (2.f * ((px + 0.5f) / width) - 1.f) * aspect_ratio * fov };
 			const float y{ (1.f - 2.f * ((py + 0.5f) / height)) * fov };
 
-			Vector3 ray_direction{ float(x), float(y), 1.f };
+			Vector4 ray_direction{ float(x), float(y), 1.f, 0.f };
 			//ray_direction.Normalize(); // no need it seems, easier for debug but careful for later
-			view_ray.direction = ray_direction;
+			view_ray.direction = inverseViewMatrix * ray_direction;
 
 			RayHitRecord closest_hit_record{};
 			bool did_hit{ scene->SceneClosestHitTest(view_ray, closest_hit_record) };

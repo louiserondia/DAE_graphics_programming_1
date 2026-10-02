@@ -31,6 +31,7 @@ namespace gfx
 			const Vector4& y_axis,
 			const Vector4& z_axis,
 			const Vector4& t);
+
 		Matrix() = default;
 		~Matrix() = default;
 		Matrix(const Matrix&);
@@ -82,6 +83,8 @@ namespace gfx
 		Vector4& operator[](const uint8_t index);
 		const Vector4& operator[](const uint8_t index) const;
 		Matrix operator*(const Matrix& m) const;
+		Vector3 operator*(const Vector3& v) const;
+		Vector4 operator*(const Vector4& v) const;
 		const Matrix& operator*=(const Matrix& m);
 		bool operator==(const Matrix& m) const;
 		bool operator!=(const Matrix& m) const;

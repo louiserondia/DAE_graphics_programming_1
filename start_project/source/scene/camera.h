@@ -54,6 +54,7 @@ namespace gfx
 		void Pitch(const float angle)
 		{
 			const Matrix rotation = Matrix::CreateRotationAxis(right_, angle);
+			right_ = rotation.TransformVector(right_);
 			forward_ = rotation.TransformVector(forward_);
 			up_ = rotation.TransformVector(up_);
 			dirty_ = true;
@@ -61,8 +62,9 @@ namespace gfx
 		void Yaw(const float angle)
 		{
 			const Matrix rotation = Matrix::CreateRotationY(angle);
-			forward_ = rotation.TransformVector(forward_);
 			right_ = rotation.TransformVector(right_);
+			forward_ = rotation.TransformVector(forward_);
+			up_ = rotation.TransformVector(up_);
 			dirty_ = true;
 		}
 
@@ -79,6 +81,9 @@ namespace gfx
 		const Matrix& GetView()
 		{
 			//TODO: create view matrix
+			//const Vector4 x{}
+			view_ = Matrix::CreateLookAtLH(position_, forward_, up_);
+
 			(void)fov_angle_;
 			return view_;
 		}

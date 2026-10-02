@@ -338,10 +338,10 @@ Matrix Matrix::Inverse(const Matrix& m)
 
 Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up)
 {
-	//TODO
-	assert(false && "Not Implemented");
-	(void)origin; (void)forward; (void)up;
-	return {};
+	const Vector3 right{ Vector3::Cross(up, forward).Normalized() };
+
+	Matrix matrix{ right, up, forward, origin }; // sets the last column as 0 0 0 1 by default if vec3 are sent
+	return matrix;
 }
 
 Matrix Matrix::CreatePerspectiveFovLH(const float fov_y, const float aspect, const float zn, const float zf)
@@ -467,12 +467,12 @@ Matrix Matrix::CreateRotationAxis(const Vector3& axis, const float angle, const 
 	const float x{ normalized_axis.x };
 	const float y{ normalized_axis.y };
 	const float z{ normalized_axis.z };
-	
+
 	return Matrix{
 		{cos_angle + x * x * one_minus_cos, x * y * one_minus_cos - z * sin_angle, x * z * one_minus_cos + y * sin_angle, 0},
 		{y * x * one_minus_cos + z * sin_angle, cos_angle + y * y * one_minus_cos, y * z * one_minus_cos - x * sin_angle, 0},
 		{z * x * one_minus_cos - y * sin_angle, z * y * one_minus_cos + x * sin_angle, cos_angle + z * z * one_minus_cos, 0},
-		{0, 0, 0, 1}};
+		{0, 0, 0, 1} };
 }
 
 Matrix Matrix::CreateScale(float sx, float sy, float sz)
@@ -513,6 +513,30 @@ Matrix Matrix::operator*(const Matrix& m) const
 			result[r][c] = data[r][0] * m[0][c] + data[r][1] * m[1][c] +
 				data[r][2] * m[2][c] + data[r][3] * m[3][c];
 		}
+	}
+	return result;
+}
+
+Vector4 Matrix::operator*(const Vector4& v) const
+{
+	Vector4 result = {};
+
+	for (uint8_t r = 0; r < 4; ++r)
+	{
+		result[r] = data[r][0] * v[0] + data[r][1] * v[1] +
+				data[r][2] * v[2] + data[r][3] * v[3];
+	}
+	return result;
+}
+
+Vector3 Matrix::operator*(const Vector3& v) const
+{
+	Vector3 result = {};
+
+	for (uint8_t r = 0; r < 3; ++r)
+	{
+		result[r] = data[r][0] * v[0] + data[r][1] * v[1] +
+				data[r][2] * v[2];
 	}
 	return result;
 }
