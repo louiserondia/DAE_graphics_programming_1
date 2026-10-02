@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(zlib_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/zlib7aef1f5ecb4e7/p")
+set(zlib_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/zlib7aef1f5ecb4e7/p")
 set(zlib_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(zlib_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(zlib_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${zlib_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${zlib_COMPILE_OPTIONS_C_RELEASE}>")
-set(zlib_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${zlib_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${zlib_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${zlib_EXE_LINK_FLAGS_RELEASE}>")
+set(zlib_COMPILE_OPTIONS_RELEASE)
+if (NOT "${zlib_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND zlib_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${zlib_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${zlib_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND zlib_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${zlib_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(zlib_LINKER_FLAGS_RELEASE)
+if (NOT "${zlib_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND zlib_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${zlib_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${zlib_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND zlib_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${zlib_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(zlib_COMPONENTS_RELEASE )

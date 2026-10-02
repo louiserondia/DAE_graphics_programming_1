@@ -14,7 +14,7 @@ build GraphicsProgramming.exe: phony bin\Release\GraphicsProgramming.exe
 
 
 #############################################
-# Folder: C:/Users/Louise/Downloads/start_project/start_project/build/msvc
+# Folder: C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc
 
 build all: phony all$:Release
 

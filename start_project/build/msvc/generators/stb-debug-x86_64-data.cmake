@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(stb_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/stb19b77fb56ffd7/p")
+set(stb_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/stb19b77fb56ffd7/p")
 set(stb_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -37,13 +37,24 @@ set(stb_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(stb_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${stb_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${stb_COMPILE_OPTIONS_C_DEBUG}>")
-set(stb_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${stb_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${stb_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${stb_EXE_LINK_FLAGS_DEBUG}>")
+set(stb_COMPILE_OPTIONS_DEBUG)
+if (NOT "${stb_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND stb_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${stb_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${stb_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND stb_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${stb_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(stb_LINKER_FLAGS_DEBUG)
+if (NOT "${stb_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND stb_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${stb_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${stb_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND stb_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${stb_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(stb_COMPONENTS_DEBUG )

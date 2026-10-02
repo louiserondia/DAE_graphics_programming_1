@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(bzip2_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/bzip28ff41bbae2bc6/p")
+set(bzip2_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/bzip28ff41bbae2bc6/p")
 set(bzip2_BUILD_MODULES_PATHS_RELEASE "${bzip2_PACKAGE_FOLDER_RELEASE}/lib/cmake/conan-official-bzip2-variables.cmake")
 
 
@@ -37,13 +37,24 @@ set(bzip2_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(bzip2_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${bzip2_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${bzip2_COMPILE_OPTIONS_C_RELEASE}>")
-set(bzip2_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${bzip2_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${bzip2_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${bzip2_EXE_LINK_FLAGS_RELEASE}>")
+set(bzip2_COMPILE_OPTIONS_RELEASE)
+if (NOT "${bzip2_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND bzip2_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${bzip2_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${bzip2_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND bzip2_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${bzip2_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(bzip2_LINKER_FLAGS_RELEASE)
+if (NOT "${bzip2_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND bzip2_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${bzip2_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${bzip2_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND bzip2_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${bzip2_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(bzip2_COMPONENTS_RELEASE )

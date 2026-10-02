@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(poly2tri_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/poly29fd3103d43607/p")
+set(poly2tri_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/poly29fd3103d43607/p")
 set(poly2tri_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(poly2tri_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(poly2tri_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${poly2tri_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${poly2tri_COMPILE_OPTIONS_C_RELEASE}>")
-set(poly2tri_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${poly2tri_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${poly2tri_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${poly2tri_EXE_LINK_FLAGS_RELEASE}>")
+set(poly2tri_COMPILE_OPTIONS_RELEASE)
+if (NOT "${poly2tri_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND poly2tri_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${poly2tri_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${poly2tri_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND poly2tri_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${poly2tri_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(poly2tri_LINKER_FLAGS_RELEASE)
+if (NOT "${poly2tri_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND poly2tri_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${poly2tri_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${poly2tri_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND poly2tri_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${poly2tri_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(poly2tri_COMPONENTS_RELEASE )

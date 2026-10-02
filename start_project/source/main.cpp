@@ -170,6 +170,7 @@ namespace
 int main(int, char**)
 {
 	// Specify settings.
+	// WINDOW WIDTH AND HEIGHT DIMENSIONS
 	constexpr uint32_t width{ 640 };
 	constexpr uint32_t height{ 480 };
 	const char* window_title{ "Intro - Louise Rondia" };

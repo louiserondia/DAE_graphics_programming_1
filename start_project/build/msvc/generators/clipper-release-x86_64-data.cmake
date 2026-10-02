@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(clipper_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/clippf48f9b0c931e5/p")
+set(clipper_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/clippf48f9b0c931e5/p")
 set(clipper_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(clipper_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(clipper_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${clipper_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${clipper_COMPILE_OPTIONS_C_RELEASE}>")
-set(clipper_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${clipper_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${clipper_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${clipper_EXE_LINK_FLAGS_RELEASE}>")
+set(clipper_COMPILE_OPTIONS_RELEASE)
+if (NOT "${clipper_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND clipper_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${clipper_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${clipper_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND clipper_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${clipper_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(clipper_LINKER_FLAGS_RELEASE)
+if (NOT "${clipper_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND clipper_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${clipper_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${clipper_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND clipper_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${clipper_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(clipper_COMPONENTS_RELEASE )

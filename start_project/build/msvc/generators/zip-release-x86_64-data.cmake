@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(kuba-zip_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/kuba-568c99be6a05e/p")
+set(kuba-zip_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/kuba-568c99be6a05e/p")
 set(kuba-zip_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(kuba-zip_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(kuba-zip_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${kuba-zip_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${kuba-zip_COMPILE_OPTIONS_C_RELEASE}>")
-set(kuba-zip_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${kuba-zip_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${kuba-zip_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${kuba-zip_EXE_LINK_FLAGS_RELEASE}>")
+set(kuba-zip_COMPILE_OPTIONS_RELEASE)
+if (NOT "${kuba-zip_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND kuba-zip_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${kuba-zip_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${kuba-zip_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND kuba-zip_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${kuba-zip_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(kuba-zip_LINKER_FLAGS_RELEASE)
+if (NOT "${kuba-zip_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND kuba-zip_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${kuba-zip_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${kuba-zip_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND kuba-zip_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${kuba-zip_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(kuba-zip_COMPONENTS_RELEASE )

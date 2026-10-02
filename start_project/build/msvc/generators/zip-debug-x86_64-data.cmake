@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(kuba-zip_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/kuba-640e99ceb27e0/p")
+set(kuba-zip_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/kuba-640e99ceb27e0/p")
 set(kuba-zip_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -37,13 +37,24 @@ set(kuba-zip_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(kuba-zip_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${kuba-zip_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${kuba-zip_COMPILE_OPTIONS_C_DEBUG}>")
-set(kuba-zip_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${kuba-zip_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${kuba-zip_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${kuba-zip_EXE_LINK_FLAGS_DEBUG}>")
+set(kuba-zip_COMPILE_OPTIONS_DEBUG)
+if (NOT "${kuba-zip_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND kuba-zip_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${kuba-zip_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${kuba-zip_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND kuba-zip_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${kuba-zip_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(kuba-zip_LINKER_FLAGS_DEBUG)
+if (NOT "${kuba-zip_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND kuba-zip_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${kuba-zip_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${kuba-zip_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND kuba-zip_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${kuba-zip_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(kuba-zip_COMPONENTS_DEBUG )

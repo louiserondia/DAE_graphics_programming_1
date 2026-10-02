@@ -20,7 +20,7 @@ set(stb_FIND_MODE "NO_MODULE")
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(assimp_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/assimba3f969903fd9/p")
+set(assimp_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/assimba3f969903fd9/p")
 set(assimp_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -46,13 +46,24 @@ set(assimp_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(assimp_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${assimp_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${assimp_COMPILE_OPTIONS_C_DEBUG}>")
-set(assimp_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${assimp_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${assimp_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${assimp_EXE_LINK_FLAGS_DEBUG}>")
+set(assimp_COMPILE_OPTIONS_DEBUG)
+if (NOT "${assimp_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND assimp_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${assimp_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${assimp_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND assimp_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${assimp_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(assimp_LINKER_FLAGS_DEBUG)
+if (NOT "${assimp_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND assimp_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${assimp_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${assimp_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND assimp_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${assimp_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(assimp_COMPONENTS_DEBUG )

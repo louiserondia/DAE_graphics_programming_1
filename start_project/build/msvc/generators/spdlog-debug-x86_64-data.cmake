@@ -13,7 +13,7 @@ set(fmt_FIND_MODE "NO_MODULE")
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(spdlog_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/spdloc6fc1fc12fa02/p")
+set(spdlog_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/spdloc6fc1fc12fa02/p")
 set(spdlog_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -41,13 +41,24 @@ set(spdlog_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(spdlog_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${spdlog_COMPILE_OPTIONS_C_DEBUG}>")
-set(spdlog_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${spdlog_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${spdlog_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_EXE_LINK_FLAGS_DEBUG}>")
+set(spdlog_COMPILE_OPTIONS_DEBUG)
+if (NOT "${spdlog_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${spdlog_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${spdlog_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(spdlog_LINKER_FLAGS_DEBUG)
+if (NOT "${spdlog_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${spdlog_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${spdlog_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(spdlog_COMPONENTS_DEBUG spdlog::spdlog)
@@ -76,11 +87,21 @@ set(spdlog_spdlog_spdlog_EXE_LINK_FLAGS_DEBUG )
 set(spdlog_spdlog_spdlog_NO_SONAME_MODE_DEBUG FALSE)
 
 # COMPOUND VARIABLES
-set(spdlog_spdlog_spdlog_LINKER_FLAGS_DEBUG
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_DEBUG}>
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_DEBUG}>
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_DEBUG}>
-)
-set(spdlog_spdlog_spdlog_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_DEBUG}>")
+set(spdlog_spdlog_spdlog_LINKER_FLAGS_DEBUG)
+if (NOT "${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_LINKER_FLAGS_DEBUG
+        $<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_DEBUG}>)
+endif ()
+if (NOT "${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_LINKER_FLAGS_DEBUG
+        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_DEBUG}>)
+endif ()
+set(spdlog_spdlog_spdlog_COMPILE_OPTIONS_DEBUG)
+if (NOT "${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()

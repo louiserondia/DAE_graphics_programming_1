@@ -13,7 +13,7 @@ set(ZLIB_FIND_MODE "NO_MODULE")
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(minizip_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/miniz71d9e8d0e7006/p")
+set(minizip_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/miniz71d9e8d0e7006/p")
 set(minizip_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -39,13 +39,24 @@ set(minizip_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(minizip_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${minizip_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${minizip_COMPILE_OPTIONS_C_RELEASE}>")
-set(minizip_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${minizip_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${minizip_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${minizip_EXE_LINK_FLAGS_RELEASE}>")
+set(minizip_COMPILE_OPTIONS_RELEASE)
+if (NOT "${minizip_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND minizip_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${minizip_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${minizip_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND minizip_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${minizip_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(minizip_LINKER_FLAGS_RELEASE)
+if (NOT "${minizip_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND minizip_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${minizip_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${minizip_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND minizip_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${minizip_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(minizip_COMPONENTS_RELEASE )

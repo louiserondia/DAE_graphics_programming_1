@@ -13,7 +13,7 @@ set(fmt_FIND_MODE "NO_MODULE")
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(spdlog_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/spdlo8197b92344502/p")
+set(spdlog_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/spdlo8197b92344502/p")
 set(spdlog_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -41,13 +41,24 @@ set(spdlog_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(spdlog_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${spdlog_COMPILE_OPTIONS_C_RELEASE}>")
-set(spdlog_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${spdlog_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${spdlog_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_EXE_LINK_FLAGS_RELEASE}>")
+set(spdlog_COMPILE_OPTIONS_RELEASE)
+if (NOT "${spdlog_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${spdlog_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${spdlog_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(spdlog_LINKER_FLAGS_RELEASE)
+if (NOT "${spdlog_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${spdlog_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${spdlog_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(spdlog_COMPONENTS_RELEASE spdlog::spdlog)
@@ -76,11 +87,21 @@ set(spdlog_spdlog_spdlog_EXE_LINK_FLAGS_RELEASE )
 set(spdlog_spdlog_spdlog_NO_SONAME_MODE_RELEASE FALSE)
 
 # COMPOUND VARIABLES
-set(spdlog_spdlog_spdlog_LINKER_FLAGS_RELEASE
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_RELEASE}>
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_RELEASE}>
-        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_RELEASE}>
-)
-set(spdlog_spdlog_spdlog_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_RELEASE}>")
+set(spdlog_spdlog_spdlog_LINKER_FLAGS_RELEASE)
+if (NOT "${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_LINKER_FLAGS_RELEASE
+        $<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${spdlog_spdlog_spdlog_SHARED_LINK_FLAGS_RELEASE}>)
+endif ()
+if (NOT "${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_LINKER_FLAGS_RELEASE
+        $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${spdlog_spdlog_spdlog_EXE_LINK_FLAGS_RELEASE}>)
+endif ()
+set(spdlog_spdlog_spdlog_COMPILE_OPTIONS_RELEASE)
+if (NOT "${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND spdlog_spdlog_spdlog_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${spdlog_spdlog_spdlog_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()

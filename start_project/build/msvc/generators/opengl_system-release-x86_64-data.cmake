@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(opengl_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/opengb4dfd9d76a483/p")
+set(opengl_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/opengb4dfd9d76a483/p")
 set(opengl_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(opengl_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(opengl_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${opengl_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${opengl_COMPILE_OPTIONS_C_RELEASE}>")
-set(opengl_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${opengl_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${opengl_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${opengl_EXE_LINK_FLAGS_RELEASE}>")
+set(opengl_COMPILE_OPTIONS_RELEASE)
+if (NOT "${opengl_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND opengl_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${opengl_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${opengl_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND opengl_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${opengl_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(opengl_LINKER_FLAGS_RELEASE)
+if (NOT "${opengl_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND opengl_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${opengl_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${opengl_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND opengl_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${opengl_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(opengl_COMPONENTS_RELEASE )

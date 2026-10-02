@@ -20,7 +20,7 @@ set(stb_FIND_MODE "NO_MODULE")
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(assimp_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/assim74b2fb4901448/p")
+set(assimp_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/assim74b2fb4901448/p")
 set(assimp_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -46,13 +46,24 @@ set(assimp_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(assimp_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${assimp_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${assimp_COMPILE_OPTIONS_C_RELEASE}>")
-set(assimp_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${assimp_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${assimp_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${assimp_EXE_LINK_FLAGS_RELEASE}>")
+set(assimp_COMPILE_OPTIONS_RELEASE)
+if (NOT "${assimp_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND assimp_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${assimp_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${assimp_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND assimp_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${assimp_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(assimp_LINKER_FLAGS_RELEASE)
+if (NOT "${assimp_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND assimp_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${assimp_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${assimp_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND assimp_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${assimp_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(assimp_COMPONENTS_RELEASE )

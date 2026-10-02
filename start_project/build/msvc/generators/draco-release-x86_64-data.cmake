@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(draco_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/draco1b9b623c5e8f7/p")
+set(draco_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/draco1b9b623c5e8f7/p")
 set(draco_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(draco_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(draco_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${draco_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${draco_COMPILE_OPTIONS_C_RELEASE}>")
-set(draco_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${draco_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${draco_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${draco_EXE_LINK_FLAGS_RELEASE}>")
+set(draco_COMPILE_OPTIONS_RELEASE)
+if (NOT "${draco_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND draco_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${draco_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${draco_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND draco_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${draco_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(draco_LINKER_FLAGS_RELEASE)
+if (NOT "${draco_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND draco_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${draco_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${draco_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND draco_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${draco_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(draco_COMPONENTS_RELEASE )

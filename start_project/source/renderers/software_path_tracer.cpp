@@ -14,8 +14,7 @@ using namespace gfx;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{
-}
+{}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -23,11 +22,31 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 // Public Functions
 // =============================================================================
 
-ShadingInput ConstructShadingInput(const RayHitRecord& hit) {
+ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) {
 	ShadingInput si{};
 
-	si.world_position = hit.ray.origin;
-	si.world_normal = hit.ray.direction;
+	si.world_position = hit.ray.origin + hit.t * hit.ray.direction;
+
+
+	Scene* scene{ context_->scene_manager->GetActiveScene() };
+	Primitive* object = scene->primitives_factory.GetAll()[hit.object_index];
+	switch (object->type)
+	{
+	case PrimitiveType::kSphere:
+	{
+		Sphere* sphere{ static_cast<Sphere*>(object) };
+		si.world_normal = (si.world_position - sphere->origin) / sphere->radius;
+		break;
+	}
+	case PrimitiveType::kPlane:
+	{
+		Plane* plane{ static_cast<Plane*>(object) };
+		si.world_normal = plane->normal;
+		break;
+	}
+	default:
+		break;
+	}
 	return si;
 }
 
@@ -35,13 +54,11 @@ void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
 
-	// DEMO CODE - TODO: remove!
-
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 
 	const SurfaceInfo& surface_info = context_->surface_info;
 	const float aspectRatio{ float(surface_info.width) / float(surface_info.height) };
-	Ray view_ray{};
+	Ray view_ray{ scene->camera.GetPosition() };
 
 	for (uint32_t py = 0; py < surface_info.height; ++py)
 	{
@@ -51,7 +68,7 @@ void SoftwarePathTracer::Render()
 			const float y{ (1.f - 2.f * ((py + 0.5f) / surface_info.height)) };
 
 			Vector3 ray_direction{ float(x), float(y), 1.f };
-			ray_direction.Normalize();
+			//ray_direction.Normalize(); // no need it seems, easier for debug but careful for later
 			view_ray.direction = ray_direction;
 
 			RayHitRecord closest_hit_record{};
@@ -70,16 +87,8 @@ void SoftwarePathTracer::Render()
 					final_color = { scaled_t, scaled_t, scaled_t };
 				}
 				else if (vismod == VisualizationMode::kNone) {
-					if (!closest_hit_record.object_index)
-						final_color = ColorRgba{ 1.f, 0.f, 0.f, 0.01f };
-					if (closest_hit_record.object_index == 1)
-						final_color = ColorRgba{ 0.f, 1.f, 0.f, 0.f };
-					if (closest_hit_record.object_index == 2)
-						final_color = ColorRgba{ 0.f, 0.f ,1.f, 0.01f };
-					if (closest_hit_record.object_index == 3)
-						final_color = ColorRgba{ 1.f, 1.f, 0.f, 0.01f };
-					if (closest_hit_record.object_index == 4)
-						final_color = ColorRgba{ 1.f, 0.f, 1.f, 0.01f };
+					const uint32_t idx{ closest_hit_record.object_index };
+					final_color = { float(idx & 1), float((idx >> 1) & 1), float((idx >> 2) & 1) };
 				}
 				else if (vismod == VisualizationMode::kNormals) {
 					const Vector3& n{ shading_input.world_normal };
@@ -103,3 +112,4 @@ void SoftwarePathTracer::Render()
 		}
 	}
 }
+

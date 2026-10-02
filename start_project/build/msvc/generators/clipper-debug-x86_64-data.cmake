@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(clipper_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/clipp9de31339b32e8/p")
+set(clipper_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/clipp9de31339b32e8/p")
 set(clipper_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -37,13 +37,24 @@ set(clipper_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(clipper_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${clipper_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${clipper_COMPILE_OPTIONS_C_DEBUG}>")
-set(clipper_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${clipper_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${clipper_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${clipper_EXE_LINK_FLAGS_DEBUG}>")
+set(clipper_COMPILE_OPTIONS_DEBUG)
+if (NOT "${clipper_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND clipper_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${clipper_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${clipper_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND clipper_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${clipper_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(clipper_LINKER_FLAGS_DEBUG)
+if (NOT "${clipper_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND clipper_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${clipper_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${clipper_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND clipper_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${clipper_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(clipper_COMPONENTS_DEBUG )

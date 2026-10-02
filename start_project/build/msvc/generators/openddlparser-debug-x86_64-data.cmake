@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(openddl-parser_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/opend391557104046e/p")
+set(openddl-parser_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/opend391557104046e/p")
 set(openddl-parser_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -37,13 +37,24 @@ set(openddl-parser_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(openddl-parser_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${openddl-parser_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${openddl-parser_COMPILE_OPTIONS_C_DEBUG}>")
-set(openddl-parser_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${openddl-parser_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${openddl-parser_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${openddl-parser_EXE_LINK_FLAGS_DEBUG}>")
+set(openddl-parser_COMPILE_OPTIONS_DEBUG)
+if (NOT "${openddl-parser_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND openddl-parser_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${openddl-parser_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${openddl-parser_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND openddl-parser_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${openddl-parser_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(openddl-parser_LINKER_FLAGS_DEBUG)
+if (NOT "${openddl-parser_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND openddl-parser_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${openddl-parser_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${openddl-parser_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND openddl-parser_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${openddl-parser_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(openddl-parser_COMPONENTS_DEBUG )

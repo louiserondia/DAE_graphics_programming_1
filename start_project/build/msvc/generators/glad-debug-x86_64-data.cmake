@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(glad_PACKAGE_FOLDER_DEBUG "C:/Users/Louise/.conan2/p/glada4378dbbbb74c/p")
+set(glad_PACKAGE_FOLDER_DEBUG "C:/Users/louis/.conan2/p/glada4378dbbbb74c/p")
 set(glad_BUILD_MODULES_PATHS_DEBUG )
 
 
@@ -37,13 +37,24 @@ set(glad_NO_SONAME_MODE_DEBUG FALSE)
 
 
 # COMPOUND VARIABLES
-set(glad_COMPILE_OPTIONS_DEBUG
-    "$<$<COMPILE_LANGUAGE:CXX>:${glad_COMPILE_OPTIONS_CXX_DEBUG}>"
-    "$<$<COMPILE_LANGUAGE:C>:${glad_COMPILE_OPTIONS_C_DEBUG}>")
-set(glad_LINKER_FLAGS_DEBUG
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${glad_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${glad_SHARED_LINK_FLAGS_DEBUG}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${glad_EXE_LINK_FLAGS_DEBUG}>")
+set(glad_COMPILE_OPTIONS_DEBUG)
+if (NOT "${glad_COMPILE_OPTIONS_CXX_DEBUG}" STREQUAL "")
+    list(APPEND glad_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:CXX>:${glad_COMPILE_OPTIONS_CXX_DEBUG}>")
+endif ()
+if (NOT "${glad_COMPILE_OPTIONS_C_DEBUG}" STREQUAL "")
+    list(APPEND glad_COMPILE_OPTIONS_DEBUG
+        "$<$<COMPILE_LANGUAGE:C>:${glad_COMPILE_OPTIONS_C_DEBUG}>")
+endif ()
+set(glad_LINKER_FLAGS_DEBUG)
+if (NOT "${glad_SHARED_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND glad_LINKER_FLAGS_DEBUG
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${glad_SHARED_LINK_FLAGS_DEBUG}>")
+endif ()
+if (NOT "${glad_EXE_LINK_FLAGS_DEBUG}" STREQUAL "")
+    list(APPEND glad_LINKER_FLAGS_DEBUG
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${glad_EXE_LINK_FLAGS_DEBUG}>")
+endif ()
 
 
 set(glad_COMPONENTS_DEBUG )

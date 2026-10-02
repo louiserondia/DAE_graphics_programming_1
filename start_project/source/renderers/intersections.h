@@ -22,13 +22,13 @@ namespace gfx
 	{
 		(void)ignore_hit_record;
 
-		const Vector3 dir_to_origin{  ray.origin - sphere.origin };
+		const Vector3 sphere_to_ray{ ray.origin - sphere.origin };
 
 		// ----- Analytical way -----
 		
 		const float a{ Vector3::Dot(ray.direction, ray.direction) };
-		const float b{ Vector3::Dot(2 * ray.direction, dir_to_origin) };
-		const float c{ Vector3::Dot(dir_to_origin, dir_to_origin) - sphere.radius * sphere.radius };
+		const float b{ Vector3::Dot(2 * ray.direction, sphere_to_ray) };
+		const float c{ Vector3::Dot(sphere_to_ray, sphere_to_ray) - sphere.radius * sphere.radius };
 		// c = |vec_ray_sphere|² - sphere.radius² , so is it cheaper to calclate dot of vector with itself than its magnitude squared ?
 
 		const float discri{ b * b - 4 * a * c };
@@ -52,15 +52,11 @@ namespace gfx
 
 		if (t0 > ray.min && t0 < ray.max) {
 			hit_record.t = t0;
-			hit_record.ray.origin = ray.origin + t0 * ray.direction;
-			hit_record.ray.direction = (ray.origin - sphere.origin) / (ray.origin - sphere.origin).Magnitude();
 			return true;
 		}
 		if (t1 > ray.min && t1 < ray.max) // we're "inside" the sphere
 		{
 			hit_record.t = t1;
-			hit_record.ray.origin = ray.origin + t1 * ray.direction;
-			hit_record.ray.direction = (ray.origin - sphere.origin) / (ray.origin - sphere.origin).Magnitude();
 			return true;
 		}
 
@@ -75,19 +71,21 @@ namespace gfx
 	{
 		(void)ignore_hit_record;
 
-		const Vector3 dir_to_origin{ plane.origin };
-		const float t{ Vector3::Dot(dir_to_origin, plane.normal) / Vector3::Dot(ray.direction , plane.normal) };
+		const Vector3 ray_to_plane{ plane.origin - ray.origin };
+		float division{ Vector3::Dot(ray.direction , plane.normal) };
+		//division = division < FLT_EPSILON ? FLT_EPSILON : division; // doesnt work
+		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / division };
+	
 
-		if (t > ray.min && t < ray.max) {
+		if (t >= ray.min && t <= ray.max) {
 			hit_record.ray = ray;
 			hit_record.t = t;
-			hit_record.ray.origin = ray.origin + t * ray.direction;
-			hit_record.ray.direction = plane.normal; // i should keep direction but otherwise how to send the plane's normal if i dont keep the object hit
 
 			if (plane.half_extent.has_value()) // is finite
 			{
 				// with rotation
-				const Vector3 p{ hit_record.ray.origin - plane.origin };
+				const Vector3 point{ ray.origin + t * ray.direction };
+				const Vector3 p{ point - plane.origin };
 				const Vector3 b{ Vector3::Cross(plane.normal, plane.tangent) };
 				const float t_prime{ Vector3::Dot(p, plane.tangent) };
 				const float b_prime{ Vector3::Dot(p, b) };

@@ -11,7 +11,7 @@ endif()
 
 ########### VARIABLES #######################################################################
 #############################################################################################
-set(pugixml_PACKAGE_FOLDER_RELEASE "C:/Users/Louise/.conan2/p/pugix070e79c1ee258/p")
+set(pugixml_PACKAGE_FOLDER_RELEASE "C:/Users/louis/.conan2/p/pugix070e79c1ee258/p")
 set(pugixml_BUILD_MODULES_PATHS_RELEASE )
 
 
@@ -37,13 +37,24 @@ set(pugixml_NO_SONAME_MODE_RELEASE FALSE)
 
 
 # COMPOUND VARIABLES
-set(pugixml_COMPILE_OPTIONS_RELEASE
-    "$<$<COMPILE_LANGUAGE:CXX>:${pugixml_COMPILE_OPTIONS_CXX_RELEASE}>"
-    "$<$<COMPILE_LANGUAGE:C>:${pugixml_COMPILE_OPTIONS_C_RELEASE}>")
-set(pugixml_LINKER_FLAGS_RELEASE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:${pugixml_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>:${pugixml_SHARED_LINK_FLAGS_RELEASE}>"
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${pugixml_EXE_LINK_FLAGS_RELEASE}>")
+set(pugixml_COMPILE_OPTIONS_RELEASE)
+if (NOT "${pugixml_COMPILE_OPTIONS_CXX_RELEASE}" STREQUAL "")
+    list(APPEND pugixml_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:CXX>:${pugixml_COMPILE_OPTIONS_CXX_RELEASE}>")
+endif ()
+if (NOT "${pugixml_COMPILE_OPTIONS_C_RELEASE}" STREQUAL "")
+    list(APPEND pugixml_COMPILE_OPTIONS_RELEASE
+        "$<$<COMPILE_LANGUAGE:C>:${pugixml_COMPILE_OPTIONS_C_RELEASE}>")
+endif ()
+set(pugixml_LINKER_FLAGS_RELEASE)
+if (NOT "${pugixml_SHARED_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND pugixml_LINKER_FLAGS_RELEASE
+        "$<$<OR:$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,MODULE_LIBRARY>>:${pugixml_SHARED_LINK_FLAGS_RELEASE}>")
+endif ()
+if (NOT "${pugixml_EXE_LINK_FLAGS_RELEASE}" STREQUAL "")
+    list(APPEND pugixml_LINKER_FLAGS_RELEASE
+        "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${pugixml_EXE_LINK_FLAGS_RELEASE}>")
+endif ()
 
 
 set(pugixml_COMPONENTS_RELEASE )

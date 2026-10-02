@@ -28,6 +28,8 @@ namespace gfx
 
 		//--- Public Functions ---
 		void Render() override;
+		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
+
 	};
 }
 #endif //SOFTWARE_PATH_TRACER_HEADER

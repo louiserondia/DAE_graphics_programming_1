@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/Louise/Downloads/start_project/start_project
+# Install script for directory: C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -35,7 +35,7 @@ endif()
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "C:/Users/Louise/Downloads/start_project/start_project/build/msvc/install_local_manifest.txt"
+  file(WRITE "C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()
 if(CMAKE_INSTALL_COMPONENT)
@@ -51,6 +51,6 @@ else()
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "C:/Users/Louise/Downloads/start_project/start_project/build/msvc/${CMAKE_INSTALL_MANIFEST}"
+  file(WRITE "C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()
