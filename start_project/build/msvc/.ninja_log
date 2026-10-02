@@ -72,3 +72,12 @@
 260	13328	8126485964846240	CMakeFiles/GraphicsProgramming.dir/Debug/source/shading/debug_views.cpp.obj	e15ee3f59c9d480f
 181	14780	8126485964057965	CMakeFiles/GraphicsProgramming.dir/Debug/source/main.cpp.obj	ffbffe27108ac026
 14780	19510	8126486110049539	bin/Debug/GraphicsProgramming.exe	fde4bbf5466ba4bf
+161	250	8126494547065576	C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/cmake.verify_globs	616d578d7b325c45
+284	21164	8126494548290868	CMakeFiles/GraphicsProgramming.dir/Debug/source/core/asset_loader.cpp.obj	71961f101ab75976
+331	23413	8126494548756293	CMakeFiles/GraphicsProgramming.dir/Debug/source/renderers/hardware_rasterizer.cpp.obj	1efb816bb30e2e22
+369	23735	8126494549136259	CMakeFiles/GraphicsProgramming.dir/Debug/source/renderers/software_rasterizer.cpp.obj	ddd039bd790117e4
+388	24311	8126494549336252	CMakeFiles/GraphicsProgramming.dir/Debug/source/shading/debug_views.cpp.obj	e15ee3f59c9d480f
+305	26111	8126494548501054	CMakeFiles/GraphicsProgramming.dir/Debug/source/main.cpp.obj	ffbffe27108ac026
+74	135	8126495027745213	C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/cmake.verify_globs	616d578d7b325c45
+153	5504	8126495028540551	CMakeFiles/GraphicsProgramming.dir/Debug/source/renderers/software_path_tracer.cpp.obj	c97c3f0dc8bd37d0
+5505	7569	8126495082059834	bin/Debug/GraphicsProgramming.exe	fde4bbf5466ba4bf

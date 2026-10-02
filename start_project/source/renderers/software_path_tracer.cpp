@@ -57,15 +57,18 @@ void SoftwarePathTracer::Render()
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 
 	const SurfaceInfo& surface_info = context_->surface_info;
-	const float aspectRatio{ float(surface_info.width) / float(surface_info.height) };
+	const uint32_t width{ surface_info.width }, height{ surface_info.height };
+	const float aspect_ratio{ float(width) / float(height) };
+	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
+
 	Ray view_ray{ scene->camera.GetPosition() };
 
-	for (uint32_t py = 0; py < surface_info.height; ++py)
+	for (uint32_t py = 0; py < height; ++py)
 	{
-		for (uint32_t px = 0; px < surface_info.width; ++px)
+		for (uint32_t px = 0; px < width; ++px)
 		{
-			const float x{ (2.f * ((px + 0.5f) / surface_info.width) - 1.f) * aspectRatio };
-			const float y{ (1.f - 2.f * ((py + 0.5f) / surface_info.height)) };
+			const float x{ (2.f * ((px + 0.5f) / width) - 1.f) * aspect_ratio * fov };
+			const float y{ (1.f - 2.f * ((py + 0.5f) / height)) * fov };
 
 			Vector3 ray_direction{ float(x), float(y), 1.f };
 			//ray_direction.Normalize(); // no need it seems, easier for debug but careful for later
@@ -104,11 +107,11 @@ void SoftwarePathTracer::Render()
 			final_color.MaxToOne();
 
 			// Write to surface
-			surface_info.pixel_buffer[px + (py * surface_info.width)] = SDL_MapRGB(
+			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
 				surface_info.pixel_format_details, nullptr,
-				static_cast<uint8_t>(final_color.r * 255),
-				static_cast<uint8_t>(final_color.g * 255),
-				static_cast<uint8_t>(final_color.b * 255));
+				uint8_t(final_color.r * 255),
+				uint8_t(final_color.g * 255),
+				uint8_t(final_color.b * 255));
 		}
 	}
 }

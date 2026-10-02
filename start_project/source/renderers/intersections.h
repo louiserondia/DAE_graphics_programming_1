@@ -70,7 +70,6 @@ namespace gfx
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
 		(void)ignore_hit_record;
-
 		const Vector3 ray_to_plane{ plane.origin - ray.origin };
 		float division{ Vector3::Dot(ray.direction , plane.normal) };
 		//division = division < FLT_EPSILON ? FLT_EPSILON : division; // doesnt work
