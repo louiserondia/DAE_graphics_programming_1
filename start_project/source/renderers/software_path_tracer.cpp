@@ -25,12 +25,16 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) {
 	ShadingInput si{};
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
-	SceneObject scene_object{ scene->objects[hit.object_index] };
+	SceneObject &scene_object{ scene->objects[hit.object_index] };
 	Primitive* primitive = scene->primitives_factory.Get(scene_object.primitive_index);
+
+	bool has_transform{};
 
 	si.world_position = hit.ray.origin + hit.t * hit.ray.direction;
 	if (scene_object.instance_transformation.has_value()) {
-		//si.world_position = scene_object.instance_transformation.value().TransformPoint(si.world_position); // weird it works without it not with it
+		si.world_position = scene_object.instance_transformation.value().TransformPoint(si.world_position);
+		si.view_direction = scene_object.instance_transformation.value().TransformVector(si.view_direction);
+		has_transform = true;
 	}
 
 	switch (primitive->type)
@@ -38,7 +42,10 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	case PrimitiveType::kSphere:
 	{
 		Sphere* sphere{ static_cast<Sphere*>(primitive) };
-		si.world_normal = (si.world_position - sphere->origin) / sphere->radius;
+
+		// need to use transform origin if exists
+		const Vector3 origin{ has_transform ? scene_object.instance_transformation.value()[3] : sphere->origin }; 
+		si.world_normal = (si.world_position - origin) / sphere->radius;
 		break;
 	}
 	case PrimitiveType::kPlane:
