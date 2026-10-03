@@ -25,7 +25,7 @@ namespace gfx
 		const Vector3 sphere_to_ray{ ray.origin - sphere.origin };
 
 		// ----- Analytical way -----
-		
+
 		const float a{ Vector3::Dot(ray.direction, ray.direction) };
 		const float b{ Vector3::Dot(2 * ray.direction, sphere_to_ray) };
 		const float c{ Vector3::Dot(sphere_to_ray, sphere_to_ray) - sphere.radius * sphere.radius };
@@ -40,7 +40,7 @@ namespace gfx
 
 
 		// ----- Geometrical way -----
-		
+
 		//const float tca{ Vector3::Dot(dir_to_origin, ray.direction) };
 		//const float od{ sqrtf(Vector3::Dot(dir_to_origin, dir_to_origin) - tca * tca) };
 		//const float thc{ sqrtf(sphere.radius * sphere.radius - od * od) };
@@ -74,7 +74,7 @@ namespace gfx
 		float division{ Vector3::Dot(ray.direction , plane.normal) };
 		//division = division < FLT_EPSILON ? FLT_EPSILON : division; // doesnt work
 		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / division };
-	
+
 
 		if (t >= ray.min && t <= ray.max) {
 			hit_record.ray = ray;
@@ -102,10 +102,39 @@ namespace gfx
 	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray,
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
 		(void)triangle; (void)ray; (void)hit_record; (void)ignore_hit_record;
-		return false;
+
+		// cull
+		if (Vector3::Dot(triangle.normal, ray.direction) >= 0) return false; // back-face or side
+
+		const Vector3 edge1{ triangle.v1 - triangle.v0 };
+		const Vector3 edge2{ triangle.v2 - triangle.v0 };
+
+		const Vector3 h{ Vector3::Cross(ray.direction, edge2) };
+
+		const float det{ Vector3::Dot(edge1, h) };
+		const float inv_det{ 1 / det };
+
+		//test u
+		const Vector3 dist{ ray.origin - triangle.v0 };
+		const float u{ Vector3::Dot(dist, h) * inv_det };
+		if (u < 0 || u > 1) return false;
+
+		//test v
+		const Vector3 q{ Vector3::Cross(dist, edge1) };
+		const float v{ Vector3::Dot(ray.direction, q) * inv_det };
+		if (v < 0 || (u + v) > 1) return false;
+
+		//test t (bounded to the ray's valid interval)
+		const float t{ Vector3::Dot(edge2, q) * inv_det };
+		if (t < ray.min || t > ray.max) return false;
+
+		//valid hit, store result
+
+		hit_record.t = t;
+		hit_record.ray = ray;
+		hit_record.barycentric_coordinates = Vector2{ u, v };
+		return true;
 	}
 
 	[[maybe_unused]]

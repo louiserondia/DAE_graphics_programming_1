@@ -109,6 +109,12 @@ namespace gfx
 					break;
 				}
 				case PrimitiveType::kTriangle:
+				{
+					Triangle* triangle = static_cast<Triangle*>(primitive);
+
+					did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
+					break;
+				}
 				case PrimitiveType::kTriangleMesh:
 				case PrimitiveType::kNone:
 				default:

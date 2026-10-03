@@ -54,6 +54,16 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 		si.world_normal = plane->normal;
 		break;
 	}
+	case PrimitiveType::kTriangle:
+	{
+		Triangle* triangle{ static_cast<Triangle*>(primitive) };
+		const Vector3 normal{ has_transform ? scene_object.instance_transformation.value().TransformNormal(triangle->normal) : triangle->normal};
+		si.world_normal = normal;
+		break;
+	}
+	case PrimitiveType::kTriangleMesh:
+	{
+	}
 	default:
 		break;
 	}
