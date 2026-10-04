@@ -1,4 +1,0 @@
-include(linux-gcc)
-
-[settings]
-build_type=Release

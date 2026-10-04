@@ -1,4 +1,0 @@
-include(windows-msvc)
-
-[settings]
-build_type=Release

@@ -1,4 +1,0 @@
-include(linux-clang)
-
-[settings]
-build_type=Release

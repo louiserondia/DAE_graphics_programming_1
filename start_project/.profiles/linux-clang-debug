@@ -1,8 +1,0 @@
-include(linux-clang)
-
-[settings]
-build_type=Debug
-
-[conf]
-#tools.build:cxxflags=["-fsanitize=address"]
-#tools.build:exelinkflags=["-fsanitize=address"]
