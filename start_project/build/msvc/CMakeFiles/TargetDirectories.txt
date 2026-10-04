@@ -1,4 +1,0 @@
-C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/GraphicsProgramming.dir
-C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/CopyResources.dir
-C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/edit_cache.dir
-C:/Users/louis/Documents/DAE/SEMESTER_3/GRAPHICS_PROG/DAE_graphics_programming_1/start_project/build/msvc/CMakeFiles/rebuild_cache.dir
