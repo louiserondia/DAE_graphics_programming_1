@@ -174,8 +174,13 @@ bool AssetLoader::Load(const std::string& path, Scene& scene,
 {
 	// Check if file exists!
 	const std::filesystem::path absolute_path{ std::filesystem::absolute(path) };
-	if (!std::filesystem::exists(absolute_path))
+	if (!std::filesystem::exists(path))
+	{
+		std::cerr << "current path! " << std::filesystem::current_path() << std::endl;
+		std::cerr << "path! " << path << std::endl;
+		std::cerr << "WTF no file ther !!! " << absolute_path << std::endl;
 		return false;
+	}
 
 	// Extract model directory for texture path resolution.
 	const std::string model_directory{ absolute_path.parent_path().string() };

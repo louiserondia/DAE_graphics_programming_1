@@ -86,7 +86,7 @@ namespace gfx
 			for (size_t i{}; i < objects.size(); i++)
 			{
 				did_hit = false;
-				temp_hit = RayHitRecord{};
+				temp_hit = RayHitRecord{}; // could only reset t ?
 				Primitive* primitive = primitives_factory.Get(objects.at(i).primitive_index);
 
 				if (objects.at(i).instance_transformation.has_value())
@@ -96,26 +96,56 @@ namespace gfx
 				{
 				case PrimitiveType::kSphere:
 				{
-					Sphere* sphere = static_cast<Sphere*>(primitive);
+					Sphere* sphere{ static_cast<Sphere*>(primitive) };
 
 					did_hit = HitTestSphere(*sphere, final_ray, temp_hit);
 					break;
 				}
 				case PrimitiveType::kPlane:
 				{
-					Plane* plane = static_cast<Plane*>(primitive);
+					Plane* plane{ static_cast<Plane*>(primitive) };
 
 					did_hit = HitTestPlane(*plane, final_ray, temp_hit);
 					break;
 				}
 				case PrimitiveType::kTriangle:
 				{
-					Triangle* triangle = static_cast<Triangle*>(primitive);
+					Triangle* triangle{ static_cast<Triangle*>(primitive) };
 
 					did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
 					break;
 				}
 				case PrimitiveType::kTriangleMesh:
+				{
+					TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
+					bool mesh_did_hit{};
+					RayHitRecord mesh_temp_hit{};
+
+					for (size_t j{}; j < mesh->indices.size(); j += 3)
+					{
+						mesh_did_hit = false;
+						mesh_temp_hit = RayHitRecord{}; // could only reset t ?
+
+						Triangle triangle{};
+						uint32_t index0{ mesh->indices[j] };
+						uint32_t index1{ mesh->indices[j + 1] };
+						uint32_t index2{ mesh->indices[j + 2] };
+
+						triangle.v0 = mesh->vertices[index0].position;
+						triangle.v1 = mesh->vertices[index1].position;
+						triangle.v2 = mesh->vertices[index2].position;
+						triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
+
+						mesh_did_hit = HitTestTriangle(triangle, final_ray, mesh_temp_hit);
+						if (mesh_did_hit && mesh_temp_hit.t < temp_hit.t)
+						{
+							did_hit = true;
+							temp_hit = mesh_temp_hit;
+							temp_hit.vertex_indices = { index0, index1, index2 };
+						}
+					}
+					break;
+				}
 				case PrimitiveType::kNone:
 				default:
 					break;

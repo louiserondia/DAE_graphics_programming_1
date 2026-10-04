@@ -105,7 +105,7 @@ namespace gfx
 		(void)triangle; (void)ray; (void)hit_record; (void)ignore_hit_record;
 
 		// cull
-		if (Vector3::Dot(triangle.normal, ray.direction) >= 0) return false; // back-face or side
+		if (Vector3::Dot(triangle.normal, ray.direction) >= 0.f) return false; // back-face or side
 
 		const Vector3 edge1{ triangle.v1 - triangle.v0 };
 		const Vector3 edge2{ triangle.v2 - triangle.v0 };
