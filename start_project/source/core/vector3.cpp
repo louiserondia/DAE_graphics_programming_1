@@ -75,14 +75,6 @@ Vector3 Vector3::Cross(const Vector3& v1, const Vector3& v2)
 		v1.x * v2.y - v1.y * v2.x };
 }
 
-Vector4 Vector3::Cross(const Vector4& v1, const Vector4& v2)
-{
-	return Vector4{
-		v1.y * v2.z - v1.z * v2.y,
-		v1.z * v2.x - v1.x * v2.z,
-		v1.x * v2.y - v1.y * v2.x, 0.f };
-}
-
 Vector3 Vector3::Project(const Vector3& v1, const Vector3& v2)
 {
 	return (v2 * (Dot(v1, v2) / Dot(v2, v2))); 

@@ -43,7 +43,6 @@ namespace gfx
 
 		static float Dot(const Vector3& v1, const Vector3& v2);
 		static Vector3 Cross(const Vector3& v1, const Vector3& v2);
-		static Vector4 Cross(const Vector4& v1, const Vector4& v2);
 		static Vector3 Project(const Vector3& v1, const Vector3& v2);
 		static Vector3 Reject(const Vector3& v1, const Vector3& v2);
 		static Vector3 Reflect(const Vector3& v1, const Vector3& v2);

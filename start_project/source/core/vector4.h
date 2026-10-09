@@ -40,6 +40,7 @@ namespace gfx
 		[[nodiscard]] Vector4 Normalized() const;
 		float Normalize();
 
+		static Vector4 Cross(const Vector4& v1, const Vector4& v2);
 		static float Dot(const Vector4& v1, const Vector4& v2);
 
 		//--- Operators ---

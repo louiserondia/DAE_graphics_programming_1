@@ -29,11 +29,9 @@ namespace gfx
 		const float a{ Vector3::Dot(ray.direction, ray.direction) };
 		const float b{ Vector3::Dot(2 * ray.direction, sphere_to_ray) };
 		const float c{ Vector3::Dot(sphere_to_ray, sphere_to_ray) - sphere.radius * sphere.radius };
-		// c = |vec_ray_sphere|² - sphere.radius² , so is it cheaper to calclate dot of vector with itself than its magnitude squared ?
-
 		const float discri{ b * b - 4 * a * c };
 
-		if (discri <= 0.f) return false; // we dont take the tangent case
+		if (discri <= 0.f) return false; // fuck the tangent case
 
 		const float t0{ (-b - sqrtf(discri)) / (2 * a) };
 		const float t1{ (-b + sqrtf(discri)) / (2 * a) };
@@ -59,9 +57,6 @@ namespace gfx
 			hit_record.t = t1;
 			return true;
 		}
-
-		// what object index is the sphere, what are barycentric coord and what vertex indices ?
-
 		return false;
 	}
 
@@ -72,8 +67,7 @@ namespace gfx
 		(void)ignore_hit_record;
 		const Vector3 ray_to_plane{ plane.origin - ray.origin };
 		float division{ Vector3::Dot(ray.direction , plane.normal) };
-		//division = division < FLT_EPSILON ? FLT_EPSILON : division; // doesnt work
-		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / division };
+		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / std::min(division, FLT_EPSILON)};
 
 
 		if (t >= ray.min && t <= ray.max) {
@@ -104,8 +98,13 @@ namespace gfx
 	{
 		(void)triangle; (void)ray; (void)hit_record; (void)ignore_hit_record;
 
+		const float dot{ Vector3::Dot(triangle.normal, ray.direction) };
+
 		// cull
-		if (Vector3::Dot(triangle.normal, ray.direction) >= 0.f) return false; // back-face or side
+		if (triangle.cull_mode == CullMode::kBackFaceCulling && dot >= 0.f) return false; // back-face or side
+		if (triangle.cull_mode == CullMode::kFrontFaceCulling && dot <= 0.f) return false; // front-face or side
+
+
 
 		const Vector3 edge1{ triangle.v1 - triangle.v0 };
 		const Vector3 edge2{ triangle.v2 - triangle.v0 };

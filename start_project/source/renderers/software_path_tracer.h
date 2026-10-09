@@ -28,6 +28,7 @@ namespace gfx
 
 		//--- Public Functions ---
 		void Render() override;
+		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
 
 	};

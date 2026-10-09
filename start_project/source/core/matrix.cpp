@@ -336,11 +336,9 @@ Matrix Matrix::Inverse(const Matrix& m)
 	return out;
 }
 
-Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up)
+Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up, const Vector3& right)
 {
-	const Vector3 right{ Vector3::Cross(up, forward).Normalized() };
-
-	Matrix matrix{ right, up, forward, origin }; // sets the last column as 0 0 0 1 by default if vec3 are sent
+	Matrix matrix{ right, up, forward, origin };
 	return matrix;
 }
 

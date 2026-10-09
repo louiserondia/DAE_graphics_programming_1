@@ -76,7 +76,7 @@ namespace gfx
 		static Matrix Transpose(const Matrix& m);
 		static Matrix Inverse(const Matrix& m);
 
-		static Matrix CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up);
+		static Matrix CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up, const Vector3& right);
 		static Matrix CreatePerspectiveFovLH(const float fov_y, const float aspect, const float zn, const float zf);
 
 		//--- Operators ---

@@ -68,11 +68,16 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 		TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
 		auto vertices_index{ hit.vertex_indices.value() };
-		Vector3 v0{ mesh->vertices[vertices_index[0]].position };
-		Vector3 v1{ mesh->vertices[vertices_index[1]].position };
-		Vector3 v2{ mesh->vertices[vertices_index[2]].position };
+		auto v0{ mesh->vertices[vertices_index[0]] };
+		auto v1{ mesh->vertices[vertices_index[1]] };
+		auto v2{ mesh->vertices[vertices_index[2]] };
 
-		Vector3 normal{ Vector3::Cross(v1 - v0, v2 - v0).Normalized() };
+		const float u{ hit.barycentric_coordinates.value().x };
+		const float v{ hit.barycentric_coordinates.value().y };
+		float w{1 - u - v };
+	
+		Vector3 normal{ v0.normal.value() * w + v1.normal.value() * u + v2.normal.value() * v };
+		//Vector3 normal{ Vector3::Cross(v1 - v0, v2 - v0).Normalized() };
 		normal = has_transform ? scene_object.instance_transformation.value().TransformNormal(normal) : normal;
 
 		si.world_normal = normal;
@@ -82,6 +87,100 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 		break;
 	}
 	return si;
+}
+
+bool SoftwarePathTracer::SceneClosestHitTest(const Ray & ray, RayHitRecord & closest_hit, bool ignore_record) const
+{
+	(void)ignore_record;
+	RayHitRecord temp_hit{};
+	bool did_hit{};
+	closest_hit.t = std::numeric_limits<float>::max();
+	Ray final_ray{ ray };
+	Scene* scene{ context_->scene_manager->GetActiveScene() };
+
+	for (size_t i{}; i < scene->objects.size(); i++)
+	{
+		did_hit = false;
+		temp_hit = RayHitRecord{}; // could only reset t ?
+		Primitive* primitive = scene->primitives_factory.Get(scene->objects.at(i).primitive_index);
+
+		if (scene->objects.at(i).instance_transformation.has_value())
+			final_ray = scene->objects.at(i).instance_transformation.value().TransformRay(ray);
+
+		switch (primitive->type)
+		{
+		case PrimitiveType::kSphere:
+		{
+			//Sphere* sphere{ static_cast<Sphere*>(primitive) };
+			Sphere* sphere{ scene->primitives_factory.GetAs<Sphere>(scene->objects.at(i).primitive_index) };
+
+			did_hit = HitTestSphere(*sphere, final_ray, temp_hit);
+			break;
+		}
+		case PrimitiveType::kPlane:
+		{
+			//Plane* plane{ static_cast<Plane*>(primitive) };
+			Plane* plane{ scene->primitives_factory.GetAs<Plane>(scene->objects.at(i).primitive_index) };
+
+			did_hit = HitTestPlane(*plane, final_ray, temp_hit);
+			break;
+		}
+		case PrimitiveType::kTriangle:
+		{
+			//Triangle* triangle{ static_cast<Triangle*>(primitive) };
+			Triangle* triangle{ scene->primitives_factory.GetAs<Triangle>(scene->objects.at(i).primitive_index) };
+
+			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
+			break;
+		}
+		case PrimitiveType::kTriangleMesh:
+		{
+			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
+			bool mesh_did_hit{};
+			RayHitRecord mesh_temp_hit{};
+
+			for (size_t j{}; j < mesh->indices.size(); j += 3)
+			{
+				mesh_did_hit = false;
+				mesh_temp_hit = RayHitRecord{}; // could only reset t ?
+
+				Triangle triangle{};
+				uint32_t index0{ mesh->indices[j] };
+				uint32_t index1{ mesh->indices[j + 1] };
+				uint32_t index2{ mesh->indices[j + 2] };
+
+				triangle.v0 = mesh->vertices[index0].position;
+				triangle.v1 = mesh->vertices[index1].position;
+				triangle.v2 = mesh->vertices[index2].position;
+				triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
+
+				mesh_did_hit = HitTestTriangle(triangle, final_ray, mesh_temp_hit);
+				if (mesh_did_hit && mesh_temp_hit.t < temp_hit.t)
+				{
+					did_hit = true;
+					temp_hit = mesh_temp_hit;
+					temp_hit.vertex_indices = { index0, index1, index2 };
+				}
+			}
+			break;
+		}
+		case PrimitiveType::kNone:
+		default:
+			break;
+		}
+
+		if (did_hit and temp_hit.t < closest_hit.t)
+		{
+			closest_hit = temp_hit;
+			closest_hit.object_index = uint32_t(i);
+		}
+	}
+	if (closest_hit.t < ray.max)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void SoftwarePathTracer::Render()
@@ -99,7 +198,7 @@ void SoftwarePathTracer::Render()
 	Matrix viewMatrix{ scene->camera.GetView() };
 	Matrix inverseViewMatrix{ viewMatrix.GetInverse() };
 
-	//for (uint32_t py = uint32_t(height / 5); py < uint32_t(height * 4 / 5); ++py) // for performance
+	//for (uint32_t py = uint32_t(height / 2); py < uint32_t(height); ++py) // for performance
 	//{
 	//	for (uint32_t px = uint32_t(width / 4); px < uint32_t(width * 3 / 4); ++px)
 	//	{
@@ -114,7 +213,7 @@ void SoftwarePathTracer::Render()
 			view_ray.direction = inverseViewMatrix * ray_direction;
 
 			RayHitRecord closest_hit_record{};
-			bool did_hit{ scene->SceneClosestHitTest(view_ray, closest_hit_record) };
+			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record) };
 
 			ShadingInput shading_input{};
 			VisualizationMode vismod{ context_->debug_params.visualization_mode };
