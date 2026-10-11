@@ -7,6 +7,8 @@
 #include <scenes.h>
 #include <intersections.h>
 #include <cmath>
+#include "../core/utils.h" // loulou
+
 using namespace gfx;
 
 // =============================================================================
@@ -14,7 +16,8 @@ using namespace gfx;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{}
+{
+}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -74,8 +77,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 
 		const float u{ hit.barycentric_coordinates.value().x };
 		const float v{ hit.barycentric_coordinates.value().y };
-		float w{1 - u - v };
-	
+		float w{ 1 - u - v };
+
 		Vector3 normal{ v0.normal.value() * w + v1.normal.value() * u + v2.normal.value() * v };
 		//Vector3 normal{ Vector3::Cross(v1 - v0, v2 - v0).Normalized() };
 		normal = has_transform ? scene_object.instance_transformation.value().TransformNormal(normal) : normal;
@@ -89,60 +92,57 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return si;
 }
 
-bool SoftwarePathTracer::SceneClosestHitTest(const Ray & ray, RayHitRecord & closest_hit, bool ignore_record) const
+bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
 {
 	(void)ignore_record;
-	RayHitRecord temp_hit{};
-	bool did_hit{};
-	closest_hit.t = std::numeric_limits<float>::max();
-	Ray final_ray{ ray };
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
+	const auto& factory{ scene->primitives_factory };
+
+	Ray final_ray{ ray };
+	closest_hit.t = std::numeric_limits<float>::max();
 
 	for (size_t i{}; i < scene->objects.size(); i++)
 	{
-		did_hit = false;
-		temp_hit = RayHitRecord{}; // could only reset t ?
-		Primitive* primitive = scene->primitives_factory.Get(scene->objects.at(i).primitive_index);
+		bool did_hit{};
+		RayHitRecord temp_hit{};
 
-		if (scene->objects.at(i).instance_transformation.has_value())
-			final_ray = scene->objects.at(i).instance_transformation.value().TransformRay(ray);
+		SceneObject& object{ scene->objects.at(i) };
+		Primitive* primitive = factory.Get(object.primitive_index);
+
+		if (object.instance_transformation.has_value())
+			final_ray = object.instance_transformation.value().TransformRay(ray);
 
 		switch (primitive->type)
 		{
 		case PrimitiveType::kSphere:
 		{
-			//Sphere* sphere{ static_cast<Sphere*>(primitive) };
-			Sphere* sphere{ scene->primitives_factory.GetAs<Sphere>(scene->objects.at(i).primitive_index) };
+			Sphere* sphere{ factory.GetAs<Sphere>(object.primitive_index) };
 
 			did_hit = HitTestSphere(*sphere, final_ray, temp_hit);
 			break;
 		}
 		case PrimitiveType::kPlane:
 		{
-			//Plane* plane{ static_cast<Plane*>(primitive) };
-			Plane* plane{ scene->primitives_factory.GetAs<Plane>(scene->objects.at(i).primitive_index) };
+			Plane* plane{ factory.GetAs<Plane>(object.primitive_index) };
 
 			did_hit = HitTestPlane(*plane, final_ray, temp_hit);
 			break;
 		}
 		case PrimitiveType::kTriangle:
 		{
-			//Triangle* triangle{ static_cast<Triangle*>(primitive) };
-			Triangle* triangle{ scene->primitives_factory.GetAs<Triangle>(scene->objects.at(i).primitive_index) };
+			Triangle* triangle{ factory.GetAs<Triangle>(object.primitive_index) };
 
 			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
 			break;
 		}
-		case PrimitiveType::kTriangleMesh:
+		case PrimitiveType::kTriangleMesh: // could be recursive and call as triangle ?
 		{
 			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
-			bool mesh_did_hit{};
-			RayHitRecord mesh_temp_hit{};
 
 			for (size_t j{}; j < mesh->indices.size(); j += 3)
 			{
-				mesh_did_hit = false;
-				mesh_temp_hit = RayHitRecord{}; // could only reset t ?
+				bool mesh_did_hit{};
+				RayHitRecord mesh_temp_hit{};
 
 				Triangle triangle{};
 				uint32_t index0{ mesh->indices[j] };
@@ -183,62 +183,71 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray & ray, RayHitRecord & clo
 	return false;
 }
 
+ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si)
+{
+	ColorRgba color{};
+
+	if (vm == VisualizationMode::kDepth) {
+		const float max_depth{ 100.f };
+		const float scaled_t{ 1.f - std::clamp(hit.t / max_depth, 0.f, 1.f) };
+		color = { scaled_t, scaled_t, scaled_t };
+	}
+	else if (vm == VisualizationMode::kNone) {
+		const uint32_t idx{ hit.object_index };
+		color = { float(idx & 1), float((idx >> 1) & 1), float((idx >> 2) & 1) };
+	}
+	else if (vm == VisualizationMode::kNormals) {
+		const Vector3& n{ si.world_normal };
+		color = {
+			(n.x + 1.f) * 0.5f,
+			(n.y + 1.f) * 0.5f,
+			(n.z + 1.f) * 0.5f
+		};
+	}
+	return color;
+}
+
+Vector4 SoftwarePathTracer::GetRayDirection(int px, int py, float w, float h)
+{
+	Scene* scene{ context_->scene_manager->GetActiveScene() };
+	const float aspect_ratio{ w / h };
+	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
+
+	const float x{ (2.f * ((px + 0.5f) / w) - 1.f) * aspect_ratio * fov };
+	const float y{ (1.f - 2.f * ((py + 0.5f) / h)) * fov };
+
+	return Vector4{ x, y, 1.f, 0.f };
+}
+
 void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
 
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
-
 	const SurfaceInfo& surface_info = context_->surface_info;
-	const uint32_t width{ surface_info.width }, height{ surface_info.height };
-	const float aspect_ratio{ float(width) / float(height) };
-	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
+	const int width{ int(surface_info.width) };
+	const int height{ int(surface_info.height) };
 
-	Ray view_ray{ scene->camera.GetPosition() };
 	Matrix viewMatrix{ scene->camera.GetView() };
 	Matrix inverseViewMatrix{ viewMatrix.GetInverse() };
 
-	//for (uint32_t py = uint32_t(height / 2); py < uint32_t(height); ++py) // for performance
-	//{
-	//	for (uint32_t px = uint32_t(width / 4); px < uint32_t(width * 3 / 4); ++px)
-	//	{
-	for (uint32_t py{}; py < height; ++py)
+#pragma omp parallel for schedule(dynamic, 16)
+	for (int py{}; py < height; ++py)
 	{
-		for (uint32_t px{}; px < width; ++px)
+		for (int px{}; px < width; ++px)
 		{
-			const float x{ (2.f * ((px + 0.5f) / width) - 1.f) * aspect_ratio * fov };
-			const float y{ (1.f - 2.f * ((py + 0.5f) / height)) * fov };
-
-			Vector4 ray_direction{ float(x), float(y), 1.f, 0.f };
-			view_ray.direction = inverseViewMatrix * ray_direction;
-
+			Ray view_ray{ scene->camera.GetPosition() };
 			RayHitRecord closest_hit_record{};
-			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record) };
-
 			ShadingInput shading_input{};
 			VisualizationMode vismod{ context_->debug_params.visualization_mode };
 			ColorRgba final_color{};
 
+			view_ray.direction = inverseViewMatrix * GetRayDirection(px, py, float(width), float(height));
+
+			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record) };
 			if (did_hit) {
 				shading_input = ConstructShadingInput(closest_hit_record);
-
-				if (vismod == VisualizationMode::kDepth) {
-					const float max_depth{ 100.f };
-					const float scaled_t{ 1.f - std::clamp(closest_hit_record.t / max_depth, 0.f, 1.f) };
-					final_color = { scaled_t, scaled_t, scaled_t };
-				}
-				else if (vismod == VisualizationMode::kNone) {
-					const uint32_t idx{ closest_hit_record.object_index };
-					final_color = { float(idx & 1), float((idx >> 1) & 1), float((idx >> 2) & 1) };
-				}
-				else if (vismod == VisualizationMode::kNormals) {
-					const Vector3& n{ shading_input.world_normal };
-					final_color = {
-						(n.x + 1.f) * 0.5f,
-						(n.y + 1.f) * 0.5f,
-						(n.z + 1.f) * 0.5f
-					};
-				}
+				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
 			}
 
 			// Convert gradient value to color.

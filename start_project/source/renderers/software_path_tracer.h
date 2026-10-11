@@ -28,8 +28,11 @@ namespace gfx
 
 		//--- Public Functions ---
 		void Render() override;
+		void RenderPerPixel();
 		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
+		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si);
+		Vector4 GetRayDirection(int px, int py, float w, float h);
 
 	};
 }
