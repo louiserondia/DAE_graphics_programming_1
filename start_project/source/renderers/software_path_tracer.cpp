@@ -92,7 +92,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return si;
 }
 
-bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
+bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record)
 {
 	(void)ignore_record;
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
@@ -103,6 +103,8 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 	for (size_t i{}; i < scene->objects.size(); i++)
 	{
+		yo = false;
+
 		bool did_hit{};
 		RayHitRecord temp_hit{};
 
@@ -138,6 +140,19 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		case PrimitiveType::kTriangleMesh: // could be recursive and call as triangle ?
 		{
 			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
+
+
+				if (mesh->bounding_box.has_value()) {
+					AABB aabb{ mesh->bounding_box.value() };
+
+					if (object.instance_transformation.has_value()) {
+						aabb.min = object.instance_transformation.value().TransformPoint(aabb.min);
+						aabb.max = object.instance_transformation.value().TransformPoint(aabb.max);
+					}
+					if (!HitTestAABB(aabb, ray)) {
+						break;
+					}
+				}
 
 			for (size_t j{}; j < mesh->indices.size(); j += 3)
 			{
@@ -204,6 +219,10 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 			(n.z + 1.f) * 0.5f
 		};
 	}
+
+	//debug
+	if (yo) return ColorRgba{ 1, 0, 0 };
+
 	return color;
 }
 
@@ -249,6 +268,7 @@ void SoftwarePathTracer::Render()
 				shading_input = ConstructShadingInput(closest_hit_record);
 				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
 			}
+			if (yo) final_color = { 1, 0, 0 };
 
 			// Convert gradient value to color.
 			final_color.MaxToOne();

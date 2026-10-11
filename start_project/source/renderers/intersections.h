@@ -67,7 +67,7 @@ namespace gfx
 		(void)ignore_hit_record;
 		const Vector3 ray_to_plane{ plane.origin - ray.origin };
 		float division{ Vector3::Dot(ray.direction , plane.normal) };
-		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / std::min(division, FLT_EPSILON)};
+		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / std::min(division, FLT_EPSILON) };
 
 
 		if (t >= ray.min && t <= ray.max) {
@@ -137,12 +137,69 @@ namespace gfx
 	}
 
 	[[maybe_unused]]
+	static Vector2 GetT(uint8_t index, const AABB& aabb, const Ray& ray) {
+		float tmin{}, tmax{};
+
+		tmin = (aabb.min[index] - ray.origin[index]) / ray.direction[index];
+		tmax = (aabb.max[index] - ray.origin[index]) / ray.direction[index];
+		if (tmin > tmax) std::swap(tmin, tmax);
+
+		return Vector2{ tmin, tmax };
+	}
+
+	//[[maybe_unused]]
+	//static bool HitTestAABB(const AABB& aabb, const Ray& ray)
+	//{
+	//	// t.x is tmin and t.y is tmax
+	//	Vector2 tx{ GetT(0, aabb, ray) };
+	//	Vector2 ty{ GetT(1, aabb, ray) };
+
+	//	if ((tx.x > ty.y) || (ty.x > tx.y)) return false;
+
+	//	if (ty.x > tx.x) tx.x = ty.x;
+	//	if (ty.y > tx.y) tx.y = ty.y;
+
+	//	Vector2 tz{ GetT(2, aabb, ray) };
+
+	//	if ((tx.x > tz.y) || (tz.x > tx.y)) return false;
+
+	//	//if (tz.x > tx.x) tx.x = tz.x;
+	//	//if (tz.y > tx.y) tx.y = tz.y; 
+	//	return true;
+	//}
+
+
+	[[maybe_unused]]
 	static bool HitTestAABB(const AABB& aabb, const Ray& ray)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)aabb; (void)ray;
-		return false;
+		float tmin = (aabb.min.x - ray.origin.x) / ray.direction.x;
+		float tmax = (aabb.max.x - ray.origin.x) / ray.direction.x;
+
+		if (tmin > tmax) std::swap(tmin, tmax);
+
+		float tymin = (aabb.min.y - ray.origin.y) / ray.direction.y;
+		float tymax = (aabb.max.y - ray.origin.y) / ray.direction.y;
+
+		if (tymin > tymax) std::swap(tymin, tymax);
+
+		if ((tmin > tymax) || (tymin > tmax))
+			return false;
+
+		if (tymin > tmin) tmin = tymin;
+		if (tymax < tmax) tmax = tymax;
+
+		float tzmin = (aabb.min.z - ray.origin.z) / ray.direction.z;
+		float tzmax = (aabb.max.z - ray.origin.z) / ray.direction.z;
+
+		if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+		if ((tmin > tzmax) || (tzmin > tmax))
+			return false;
+
+		if (tzmin > tmin) tmin = tzmin;
+		if (tzmax < tmax) tmax = tzmax;
+
+		return true;
 	}
 }
 #endif //INTERSECTIONS_HEADER

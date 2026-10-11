@@ -19,7 +19,17 @@ void Triangle::UpdateAABB()
 
 void TriangleMesh::UpdateAABB()
 {
-	//TODO
+	bounding_box = AABB{};
+	for (const Vertex& vertex : vertices)
+	{
+		bounding_box.value().min.x = std::min(vertex.position.x, bounding_box.value().min.x);
+		bounding_box.value().min.y = std::min(vertex.position.y, bounding_box.value().min.y);
+		bounding_box.value().min.z = std::min(vertex.position.z, bounding_box.value().min.z);
+		
+		bounding_box.value().max.x = std::max(vertex.position.x, bounding_box.value().max.x);
+		bounding_box.value().max.y = std::max(vertex.position.y, bounding_box.value().max.y);
+		bounding_box.value().max.z = std::max(vertex.position.z, bounding_box.value().max.z);
+	}
 }
 
 //--- AABB ---

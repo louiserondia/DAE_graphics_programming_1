@@ -18,6 +18,8 @@ namespace gfx
 	{
 	public:
 		//--- Construction / Destruction ---
+		bool yo;
+
 		SoftwarePathTracer(Context* const context);
 		~SoftwarePathTracer() override;
 
@@ -29,7 +31,7 @@ namespace gfx
 		//--- Public Functions ---
 		void Render() override;
 		void RenderPerPixel();
-		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
+		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) ; // remettre le const (retire pour yo)
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
 		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si);
 		Vector4 GetRayDirection(int px, int py, float w, float h);
