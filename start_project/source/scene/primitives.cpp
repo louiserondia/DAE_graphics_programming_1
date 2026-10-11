@@ -14,7 +14,7 @@ void Sphere::UpdateAABB()
 
 void Triangle::UpdateAABB()
 {
-	//TODO
+	//TODO ???????? question
 }
 
 void TriangleMesh::UpdateAABB()

@@ -80,7 +80,6 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 		float w{ 1 - u - v };
 
 		Vector3 normal{ v0.normal.value() * w + v1.normal.value() * u + v2.normal.value() * v };
-		//Vector3 normal{ Vector3::Cross(v1 - v0, v2 - v0).Normalized() };
 		normal = has_transform ? scene_object.instance_transformation.value().TransformNormal(normal) : normal;
 
 		si.world_normal = normal;
@@ -141,7 +140,6 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		{
 			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
-
 				if (mesh->bounding_box.has_value()) {
 					AABB aabb{ mesh->bounding_box.value() };
 
@@ -149,9 +147,9 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 						aabb.min = object.instance_transformation.value().TransformPoint(aabb.min);
 						aabb.max = object.instance_transformation.value().TransformPoint(aabb.max);
 					}
-					if (!HitTestAABB(aabb, ray)) {
+					if (!HitTestAABB(aabb, ray))
 						break;
-					}
+					//if the closest point is bigger than t, useless to look, but how could i know? question
 				}
 
 			for (size_t j{}; j < mesh->indices.size(); j += 3)
@@ -238,6 +236,8 @@ Vector4 SoftwarePathTracer::GetRayDirection(int px, int py, float w, float h)
 	return Vector4{ x, y, 1.f, 0.f };
 }
 
+// question why do i have such low performance
+// question why do i have such low performance
 void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");

@@ -105,7 +105,6 @@ namespace gfx
 		if (triangle.cull_mode == CullMode::kFrontFaceCulling && dot <= 0.f) return false; // front-face or side
 
 
-
 		const Vector3 edge1{ triangle.v1 - triangle.v0 };
 		const Vector3 edge2{ triangle.v2 - triangle.v0 };
 
@@ -129,7 +128,6 @@ namespace gfx
 		if (t < ray.min || t > ray.max) return false;
 
 		//valid hit, store result
-
 		hit_record.t = t;
 		hit_record.ray = ray;
 		hit_record.barycentric_coordinates = Vector2{ u, v };
@@ -147,39 +145,38 @@ namespace gfx
 		return Vector2{ tmin, tmax };
 	}
 
-	//[[maybe_unused]]
-	//static bool HitTestAABB(const AABB& aabb, const Ray& ray)
-	//{
-	//	// t.x is tmin and t.y is tmax
-	//	Vector2 tx{ GetT(0, aabb, ray) };
-	//	Vector2 ty{ GetT(1, aabb, ray) };
+	//less performant :(
+		//[[maybe_unused]]
+		//static bool HitTestAABB(const AABB& aabb, const Ray& ray)
+		//{
+		//	// t.x is tmin and t.y is tmax
+		//	Vector2 tx{ GetT(0, aabb, ray) };
+		//	Vector2 ty{ GetT(1, aabb, ray) };
 
-	//	if ((tx.x > ty.y) || (ty.x > tx.y)) return false;
+		//	if ((tx.x > ty.y) || (ty.x > tx.y)) return false;
 
-	//	if (ty.x > tx.x) tx.x = ty.x;
-	//	if (ty.y > tx.y) tx.y = ty.y;
+		//	if (ty.x > tx.x) tx.x = ty.x;
+		//	if (ty.y > tx.y) tx.y = ty.y;
 
-	//	Vector2 tz{ GetT(2, aabb, ray) };
+		//	Vector2 tz{ GetT(2, aabb, ray) };
 
-	//	if ((tx.x > tz.y) || (tz.x > tx.y)) return false;
+		//	if ((tx.x > tz.y) || (tz.x > tx.y)) return false;
 
-	//	//if (tz.x > tx.x) tx.x = tz.x;
-	//	//if (tz.y > tx.y) tx.y = tz.y; 
-	//	return true;
-	//}
-
+		//	//if (tz.x > tx.x) tx.x = tz.x;
+		//	//if (tz.y > tx.y) tx.y = tz.y; 
+		//	return true;
+		//}
 
 	[[maybe_unused]]
 	static bool HitTestAABB(const AABB& aabb, const Ray& ray)
 	{
-		float tmin = (aabb.min.x - ray.origin.x) / ray.direction.x;
-		float tmax = (aabb.max.x - ray.origin.x) / ray.direction.x;
-
+		// tmin/tmax are at first x but change to y later if y is smaller to test with z
+		float tmin{ (aabb.min.x - ray.origin.x) / ray.direction.x };
+		float tmax{ (aabb.max.x - ray.origin.x) / ray.direction.x };
 		if (tmin > tmax) std::swap(tmin, tmax);
 
-		float tymin = (aabb.min.y - ray.origin.y) / ray.direction.y;
-		float tymax = (aabb.max.y - ray.origin.y) / ray.direction.y;
-
+		float tymin{ (aabb.min.y - ray.origin.y) / ray.direction.y };
+		float tymax{ (aabb.max.y - ray.origin.y) / ray.direction.y };
 		if (tymin > tymax) std::swap(tymin, tymax);
 
 		if ((tmin > tymax) || (tymin > tmax))
@@ -188,18 +185,18 @@ namespace gfx
 		if (tymin > tmin) tmin = tymin;
 		if (tymax < tmax) tmax = tymax;
 
-		float tzmin = (aabb.min.z - ray.origin.z) / ray.direction.z;
-		float tzmax = (aabb.max.z - ray.origin.z) / ray.direction.z;
-
+		float tzmin{ (aabb.min.z - ray.origin.z) / ray.direction.z };
+		float tzmax{ (aabb.max.z - ray.origin.z) / ray.direction.z };
 		if (tzmin > tzmax) std::swap(tzmin, tzmax);
 
 		if ((tmin > tzmax) || (tzmin > tmax))
 			return false;
 
-		if (tzmin > tmin) tmin = tzmin;
-		if (tzmax < tmax) tmax = tzmax;
+		//if (tzmin > tmin) tmin = tzmin;
+		//if (tzmax < tmax) tmax = tzmax;
 
 		return true;
 	}
+
 }
 #endif //INTERSECTIONS_HEADER
