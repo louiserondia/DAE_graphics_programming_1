@@ -19,8 +19,10 @@
 #include <vector3.h>
 #include <color.h>
 
+
 namespace gfx
 {
+	struct Vertex;
 	//--- Ray Tracing Support Structs ---
 	struct Ray final
 	{
@@ -56,7 +58,8 @@ namespace gfx
 
 		AABB() = default;
 		AABB(const Vector3& min_point, const Vector3& max_point) : min(min_point), max(max_point) {}
-
+		
+		void UpdateAABBPerVertex(const Vertex& vertex);
 		void ExpandToInclude(const Vector3& point);
 		void ExpandToInclude(const AABB& other);
 		[[nodiscard]] bool Contains(const Vector3& point) const;

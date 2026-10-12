@@ -7,6 +7,7 @@
 using namespace gfx;
 
 //--- Primitives AABB Updates ---
+
 void Sphere::UpdateAABB()
 {
 	//TODO
@@ -14,7 +15,10 @@ void Sphere::UpdateAABB()
 
 void Triangle::UpdateAABB()
 {
-	//TODO ???????? question
+	bounding_box = AABB{};
+	bounding_box.value().UpdateAABBPerVertex(v0);
+	bounding_box.value().UpdateAABBPerVertex(v1);
+	bounding_box.value().UpdateAABBPerVertex(v2);
 }
 
 void TriangleMesh::UpdateAABB()
@@ -22,17 +26,34 @@ void TriangleMesh::UpdateAABB()
 	bounding_box = AABB{};
 	for (const Vertex& vertex : vertices)
 	{
-		bounding_box.value().min.x = std::min(vertex.position.x, bounding_box.value().min.x);
-		bounding_box.value().min.y = std::min(vertex.position.y, bounding_box.value().min.y);
-		bounding_box.value().min.z = std::min(vertex.position.z, bounding_box.value().min.z);
-		
-		bounding_box.value().max.x = std::max(vertex.position.x, bounding_box.value().max.x);
-		bounding_box.value().max.y = std::max(vertex.position.y, bounding_box.value().max.y);
-		bounding_box.value().max.z = std::max(vertex.position.z, bounding_box.value().max.z);
+		bounding_box.value().UpdateAABBPerVertex(vertex);
 	}
 }
 
 //--- AABB ---
+
+void AABB::UpdateAABBPerVertex(const Vector3& pos)
+{
+	min.x = std::min(pos.x, min.x);
+	min.y = std::min(pos.y, min.y);
+	min.z = std::min(pos.z, min.z);
+					 
+	max.x = std::max(pos.x, max.x);
+	max.y = std::max(pos.y, max.y);
+	max.z = std::max(pos.z, max.z);
+}
+
+void AABB::UpdateAABBPerVertex(const Vertex& vertex)
+{
+	min.x = std::min(vertex.position.x, min.x);
+	min.y = std::min(vertex.position.y, min.y);
+	min.z = std::min(vertex.position.z, min.z);
+
+	max.x = std::max(vertex.position.x, max.x);
+	max.y = std::max(vertex.position.y, max.y);
+	max.z = std::max(vertex.position.z, max.z);
+}
+
 void AABB::ExpandToInclude(const Vector3& point)
 {
 	min = Vector3::Min(min, point);
