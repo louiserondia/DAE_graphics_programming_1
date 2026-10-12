@@ -58,8 +58,10 @@ namespace gfx
 
 		AABB() = default;
 		AABB(const Vector3& min_point, const Vector3& max_point) : min(min_point), max(max_point) {}
-		
+
+		void UpdateAABBPerVertex(const Vector3& pos);
 		void UpdateAABBPerVertex(const Vertex& vertex);
+		void ExpandToInclude(const Vector4& point);
 		void ExpandToInclude(const Vector3& point);
 		void ExpandToInclude(const AABB& other);
 		[[nodiscard]] bool Contains(const Vector3& point) const;
@@ -75,8 +77,15 @@ namespace gfx
 		uint32_t left_child{ 0 };
 		uint32_t first_tri{ 0 };
 		uint32_t tri_count{ 0 };
-		[[nodiscard]] bool IsLeaf() const { return tri_count > 0; }
+		[[nodiscard]] bool IsLeaf() const { return tri_count <= 10; }
+
 	};
+
+	//static void BVH(
+	//	BVHNode& node,
+	//	std::vector<BVHNode>& tree,
+	//	std::vector<std::pair<Vector4, AABB>>& triangles,
+	//	std::vector<uint32_t>& bvh_tri_indices);
 
 	//--- Base Primitive ---
 	enum class PrimitiveType : uint8_t
@@ -273,6 +282,7 @@ namespace gfx
 		}
 
 		void UpdateAABB() override;
+		Vector4 GetCentroid();
 	};
 
 	enum class PrimitiveTopology : uint8_t
@@ -299,6 +309,7 @@ namespace gfx
 			: Primitive(PrimitiveType::kTriangleMesh),
 			vertices(vertices), indices(indices),
 			cull_mode(mode), primitive_topology(topology) {
+			bounding_box = AABB{}; // loulou
 			UpdateAABB();
 		}
 		TriangleMesh(std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices,
@@ -307,6 +318,7 @@ namespace gfx
 			: Primitive(PrimitiveType::kTriangleMesh),
 			vertices(std::move(vertices)), indices(std::move(indices)),
 			cull_mode(mode), primitive_topology(topology) {
+			bounding_box = AABB{}; // loulou
 			UpdateAABB();
 		}
 

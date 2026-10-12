@@ -336,7 +336,8 @@ int main(int, char**)
 			// Right Mouse Button: Look around (pitch/yaw).
 			if (mouse_state & SDL_BUTTON_RMASK)
 			{
-				active_scene->camera.Pitch(-mouse_y * current_rotation_speed);
+				// changed mouse_y to positive in pitch for better feeling (loulou)
+				active_scene->camera.Pitch(mouse_y * current_rotation_speed);
 				active_scene->camera.Yaw(mouse_x * current_rotation_speed);
 
 				// Right Mouse + WASD: Fly around with look.
