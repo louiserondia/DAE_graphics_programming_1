@@ -31,6 +31,10 @@ namespace gfx
 		//--- Public Functions ---
 		void Render() override;
 		void RenderPerPixel();
+		std::optional<RayHitRecord> BVHTraversal(size_t node_index,
+			const Ray& ray,
+			TriangleMesh* mesh,
+			const std::optional<Matrix>& transform);
 		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) ; // remettre le const (retire pour yo)
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
 		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si);

@@ -338,8 +338,7 @@ Matrix Matrix::Inverse(const Matrix& m)
 
 Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up, const Vector3& right)
 {
-	Matrix matrix{ right, up, forward, origin };
-	return matrix;
+	return Matrix{ right, up, forward, origin };
 }
 
 Matrix Matrix::CreatePerspectiveFovLH(const float fov_y, const float aspect, const float zn, const float zf)

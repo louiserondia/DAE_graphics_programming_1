@@ -77,7 +77,7 @@ namespace gfx
 		uint32_t left_child{ 0 };
 		uint32_t first_tri{ 0 };
 		uint32_t tri_count{ 0 };
-		[[nodiscard]] bool IsLeaf() const { return tri_count <= 10; }
+		[[nodiscard]] bool IsLeaf() const { return tri_count <= 4; }
 
 	};
 

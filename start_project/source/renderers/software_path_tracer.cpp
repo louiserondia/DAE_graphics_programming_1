@@ -16,8 +16,7 @@ using namespace gfx;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{
-}
+{}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -91,6 +90,82 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return si;
 }
 
+// question: couldnt we optimise by no even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
+
+// either closest hit parameter or return if hit
+std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
+	size_t node_index,
+	const Ray& ray,
+	TriangleMesh* mesh,
+	const std::optional<Matrix>& transform
+)
+{
+	BVHNode& node{ mesh->bvh_nodes[node_index] };
+	RayHitRecord closest_hit{};
+	AABB aabb{ node.bounds };
+
+	//if (transform.has_value()) {
+	//	aabb.min = transform.value().TransformPoint(aabb.min);
+	//	aabb.max = transform.value().TransformPoint(aabb.max);
+	//}
+
+	bool did_hit_AABB{ HitTestAABB(aabb, ray) };
+
+	if (!did_hit_AABB)
+		return std::nullopt;
+
+	if (node.IsLeaf()) {
+		bool did_hit{};
+		RayHitRecord temp_hit{};
+		for (size_t i{ node.first_tri }; i < node.first_tri + node.tri_count; i++)
+		{
+			Triangle triangle{};
+			did_hit = false;
+
+			auto mesh_index{ mesh->bvh_tri_indices[i] * 3 };
+			uint32_t index0{ mesh->indices[mesh_index] };
+			uint32_t index1{ mesh->indices[mesh_index + 1] };
+			uint32_t index2{ mesh->indices[mesh_index + 2] };
+
+			triangle.v0 = mesh->vertices[index0].position;
+			triangle.v1 = mesh->vertices[index1].position;
+			triangle.v2 = mesh->vertices[index2].position;
+
+			triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
+
+			did_hit = HitTestTriangle(triangle, ray, temp_hit);
+			if (did_hit) {
+
+				if (temp_hit.t < closest_hit.t)
+					//if (did_hit && temp_hit.t < closest_hit.t)
+				{
+					closest_hit = temp_hit;
+					closest_hit.vertex_indices = { index0, index1, index2 };
+				}
+			}
+		}
+
+		if (closest_hit.t < ray.max) {
+			return closest_hit;
+		}
+		return std::nullopt;
+	}
+
+	auto left_child_index{ node.left_child };
+
+	auto left{ BVHTraversal(left_child_index, ray, mesh, transform) };
+	auto right{ BVHTraversal(left_child_index + 1, ray, mesh, transform) };
+
+	if (left.has_value() && right.has_value())
+		return left.value().t < right.value().t ? left : right;
+	else if (left.has_value())
+		return left;
+	else if (right.has_value())
+		return right;
+	else
+		return std::nullopt;
+}
+
 bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record)
 {
 	(void)ignore_record;
@@ -140,40 +215,12 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		{
 			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
-				if (mesh->bounding_box.has_value()) {
-					AABB aabb{ mesh->bounding_box.value() };
+			if (!mesh->bvh_nodes.size()) break;
 
-					if (object.instance_transformation.has_value()) {
-						aabb.min = object.instance_transformation.value().TransformPoint(aabb.min);
-						aabb.max = object.instance_transformation.value().TransformPoint(aabb.max);
-					}
-					if (!HitTestAABB(aabb, ray))
-						break;
-					//if the closest point is bigger than t, useless to look, but how could i know? question
-				}
-
-			for (size_t j{}; j < mesh->indices.size(); j += 3)
-			{
-				bool mesh_did_hit{};
-				RayHitRecord mesh_temp_hit{};
-
-				Triangle triangle{};
-				uint32_t index0{ mesh->indices[j] };
-				uint32_t index1{ mesh->indices[j + 1] };
-				uint32_t index2{ mesh->indices[j + 2] };
-
-				triangle.v0 = mesh->vertices[index0].position;
-				triangle.v1 = mesh->vertices[index1].position;
-				triangle.v2 = mesh->vertices[index2].position;
-				triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
-
-				mesh_did_hit = HitTestTriangle(triangle, final_ray, mesh_temp_hit);
-				if (mesh_did_hit && mesh_temp_hit.t < temp_hit.t)
-				{
-					did_hit = true;
-					temp_hit = mesh_temp_hit;
-					temp_hit.vertex_indices = { index0, index1, index2 };
-				}
+			auto mesh_hit{ BVHTraversal(0, ray, mesh, object.instance_transformation) };
+			if (mesh_hit.has_value()) {
+				did_hit = true;
+				temp_hit = mesh_hit.value();
 			}
 			break;
 		}
@@ -236,7 +283,6 @@ Vector4 SoftwarePathTracer::GetRayDirection(int px, int py, float w, float h)
 	return Vector4{ x, y, 1.f, 0.f };
 }
 
-// question why do i have such low performance
 // question why do i have such low performance
 void SoftwarePathTracer::Render()
 {

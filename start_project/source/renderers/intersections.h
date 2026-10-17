@@ -145,7 +145,7 @@ namespace gfx
 		return Vector2{ tmin, tmax };
 	}
 
-	//less performant :(
+	//less performant :( question
 		//[[maybe_unused]]
 		//static bool HitTestAABB(const AABB& aabb, const Ray& ray)
 		//{

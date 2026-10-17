@@ -6,6 +6,7 @@
 #include <primitives.h>
 #include <numeric>
 #include <iostream>
+#include <cmath>
 using namespace gfx;
 
 //--- Primitives AABB Updates ---
@@ -40,21 +41,22 @@ Vector4 Triangle::GetCentroid()
 
 
 static void BVH(
-	BVHNode& node,
+	uint32_t node_index,
 	std::vector<BVHNode>& tree,
 	std::vector<std::pair<Vector4, AABB>>& triangles,
 	std::vector<uint32_t>& bvh_tri_indices)
 {
+	BVHNode& node{ tree[node_index] };
 
 	// 0. end condition
 	if (node.IsLeaf())
-	{
-		std::cout << "tri count : " << node.tri_count << std::endl;
 		return;
-	}
 
 	// 1. find longest side and cut in two
-	const Vector3 size(node.bounds.GetSize());
+	Vector3 size{ node.bounds.GetSize() };
+	size.x = abs(size.x);
+	size.y = abs(size.y);
+	size.z = abs(size.z);
 
 	BVHNode left{};
 	BVHNode right{};
@@ -66,7 +68,7 @@ static void BVH(
 
 	const float mid{ node.bounds.min[biggest] + (node.bounds.max[biggest] - node.bounds.min[biggest]) / 2 };
 
-	// bvhvv_tri_indices is the array of indices of the triangles, sorted by node, 
+	// bvh_tri_indices is the array of indices of the triangles, sorted by node, 
 	// we run through the indices of parent node and split them in two temporary arrays
 	// then replace the values in the original
 	// we also create the new aabb for the children, 
@@ -82,33 +84,58 @@ static void BVH(
 	{
 		uint32_t tri_index{ bvh_tri_indices[index] };
 
-		if (triangles.at(tri_index).first[biggest] < mid) // is left child
+		Vector4 tri_centroid{ triangles.at(tri_index).first }; // using centroid to build aabb 
+		//AABB tri_bounds{ triangles.at(tri_index).second }; // using triangle's aabb to build aabb 
+		if (tri_centroid[biggest] < mid)
 		{
 			left_temp.push_back(tri_index);
-			left.bounds.ExpandToInclude(triangles.at(tri_index).second);
+			left.bounds.ExpandToInclude(tri_centroid);
 		}
 		else
 		{
 			right_temp.push_back(tri_index);
-			right.bounds.ExpandToInclude(triangles.at(tri_index).second);
+			right.bounds.ExpandToInclude(tri_centroid);
 		}
 	}
 
-	bvh_tri_indices.erase(bvh_tri_indices.begin() + node.first_tri, bvh_tri_indices.begin() + node.first_tri + node.tri_count);
-	bvh_tri_indices.insert(bvh_tri_indices.begin() + node.first_tri, left_temp.begin(), left_temp.end());
-	bvh_tri_indices.insert(bvh_tri_indices.begin() + node.first_tri, right_temp.begin(), right_temp.end());
+	if (left_temp.empty() || right_temp.empty()) {
+		std::cerr << "----\nleft : " << left_temp.size() << " right : " << right_temp.size() << std::endl;
+		float cmin{ FLT_MAX }, cmax{ -FLT_MAX };
+		for (uint32_t i{ node.first_tri }; i < node.first_tri + node.tri_count; i++)
+		{
+			float c{ triangles[bvh_tri_indices[i]].first[biggest] };
+			cmin = std::min(cmin, c);
+			cmax = std::max(cmax, c);
+		}
+		std::cerr << "axis " << int(biggest)
+			<< " bounds [" << node.bounds.min[biggest] << ", " << node.bounds.max[biggest] << "]"
+			<< " mid " << mid
+			<< " centroids [" << cmin << ", " << cmax << "]\n";
+		return;
+	}
+
+	uint32_t i{ node.first_tri };
+	for (auto& t : left_temp)
+	{
+		bvh_tri_indices[i] = t;
+		i++;
+	}
+	for (auto& t : right_temp)
+	{
+		bvh_tri_indices[i] = t;
+		i++;
+	}
 
 	// 3. set children nodes' variables
 
 	left.first_tri = node.first_tri;
 	left.tri_count = uint32_t(left_temp.size());
-	right.first_tri = uint32_t(node.first_tri + left_temp.size());
+	right.first_tri = left.first_tri + left.tri_count;
 	right.tri_count = uint32_t(right_temp.size());
 
-
 	// 4. add nodes to tree
-
-	node.left_child = uint32_t(tree.size());
+	uint32_t left_tree_pos{ uint32_t(tree.size()) };
+	node.left_child = left_tree_pos;
 
 	tree.push_back(left);
 	tree.push_back(right);
@@ -118,15 +145,17 @@ static void BVH(
 	left_temp.clear();
 	right_temp.clear();
 
-	BVH(left, tree, triangles, bvh_tri_indices);
-	BVH(right, tree, triangles, bvh_tri_indices);
+	BVH(left_tree_pos, tree, triangles, bvh_tri_indices);
+	BVH(left_tree_pos + 1, tree, triangles, bvh_tri_indices);
 }
+
+// careful !! im sending the index of the node and not the node ref because ref can be invalidated during pushback !
 
 void TriangleMesh::UpdateAABB()
 {
 	size_t count{ indices.size() / 3 };
 	bvh_tri_indices.resize(count);
-	std::iota(bvh_tri_indices.begin(), bvh_tri_indices.end(), 0);
+	std::iota(bvh_tri_indices.begin(), bvh_tri_indices.end(), 0); // could push back in loop
 	std::vector<std::pair<Vector4, AABB>> triangles(count);
 
 	for (size_t i{}; i < indices.size(); i += 3)
@@ -151,10 +180,9 @@ void TriangleMesh::UpdateAABB()
 
 	tree.push_back(root);
 
-	BVH(root, tree, triangles, bvh_tri_indices);
+	BVH(0, tree, triangles, bvh_tri_indices);
+	bvh_nodes = std::move(tree);
 }
-
-
 
 //--- AABB ---
 
