@@ -40,12 +40,18 @@ Vector4 Triangle::GetCentroid()
 }
 
 
+// bvh_tri_indices is the array of indices of the triangles, sorted by node, 
+// we run through the indices of parent node and split them in two temporary arrays
+// then replace the values in the original
+// we also create the new aabb for the children, 
+// not just divided in 2 but adjsted to the new set of triangles
+
 static void BVH(
 	uint32_t node_index,
 	std::vector<BVHNode>& tree,
 	std::vector<std::pair<Vector4, AABB>>& triangles,
 	std::vector<uint32_t>& bvh_tri_indices,
-	const AABB &centroid_bounds
+	const AABB& centroid_bounds
 )
 {
 	BVHNode& node{ tree[node_index] };
@@ -54,11 +60,8 @@ static void BVH(
 	if (node.IsLeaf())
 		return;
 
-	// 1. find longest side and cut in two
+	// 1. find longest side and cut current bounding box (aabb) in two
 	Vector3 size{ centroid_bounds.GetSize() };
-	size.x = abs(size.x);
-	size.y = abs(size.y);
-	size.z = abs(size.z);
 
 	BVHNode left{};
 	BVHNode right{};
@@ -68,66 +71,39 @@ static void BVH(
 		size.y > size.x && size.y > size.z ? uint8_t(1) : uint8_t(2)
 	};
 
-	const float mid{ centroid_bounds.min[biggest] + (centroid_bounds.max[biggest] - centroid_bounds.min[biggest]) / 2 };
+	const float mid{ centroid_bounds.min[biggest] + size[biggest] / 2 };
 
-	// bvh_tri_indices is the array of indices of the triangles, sorted by node, 
-	// we run through the indices of parent node and split them in two temporary arrays
-	// then replace the values in the original
-	// we also create the new aabb for the children, 
-	// not just divided in 2 but adjsted to the new set of triangles
-
-	std::vector<uint32_t> left_temp;
-	std::vector<uint32_t> right_temp;
 	AABB left_centroids{};
 	AABB right_centroids{};
 
-	left_temp.reserve(node.tri_count / 3);
-	right_temp.reserve(node.tri_count / 3);
-
-	for (uint32_t index{ node.first_tri }; index < node.first_tri + node.tri_count; index++)
+	// sort indices if their centroid is on the left or right of the split
+	uint32_t boundary_index{ node.first_tri };
+	for (uint32_t index{ node.first_tri }; index < node.first_tri + node.tri_count; ++index)
 	{
 		uint32_t tri_index{ bvh_tri_indices[index] };
 
 		AABB tri_bounds{ triangles.at(tri_index).second };
 		Vector4 tri_centroid{ triangles.at(tri_index).first };
-		if (tri_centroid[biggest] < mid)
+		if (tri_centroid[biggest] < mid) // left
 		{
-			left_temp.push_back(tri_index);
+			std::swap(bvh_tri_indices[boundary_index], bvh_tri_indices[index]);
+			++boundary_index;
 			left.bounds.ExpandToInclude(tri_bounds);
 			left_centroids.ExpandToInclude(tri_centroid);
 
 		}
 		else
 		{
-			right_temp.push_back(tri_index);
 			right.bounds.ExpandToInclude(tri_bounds);
 			right_centroids.ExpandToInclude(tri_centroid);
 		}
 	}
 
-	if (left_temp.empty() || right_temp.empty()) {
-		std::cerr << "Bvh split error left side : " << left_temp.size() << ", right side : " << right_temp.size() << std::endl;
-		return;
-	}
-
-	uint32_t i{ node.first_tri };
-	for (auto& t : left_temp)
-	{
-		bvh_tri_indices[i] = t;
-		i++;
-	}
-	for (auto& t : right_temp)
-	{
-		bvh_tri_indices[i] = t;
-		i++;
-	}
-
 	// 3. set children nodes' variables
-
 	left.first_tri = node.first_tri;
-	left.tri_count = uint32_t(left_temp.size());
+	left.tri_count = boundary_index - node.first_tri;
 	right.first_tri = left.first_tri + left.tri_count;
-	right.tri_count = uint32_t(right_temp.size());
+	right.tri_count = node.tri_count - left.tri_count;
 
 	// 4. add nodes to tree
 	uint32_t left_tree_pos{ uint32_t(tree.size()) };
@@ -136,11 +112,7 @@ static void BVH(
 	tree.push_back(left);
 	tree.push_back(right);
 
-	// 5. call for children and clear temp vectors
-
-	left_temp.clear();
-	right_temp.clear();
-
+	// 5. call for children
 	BVH(left_tree_pos, tree, triangles, bvh_tri_indices, left_centroids);
 	BVH(left_tree_pos + 1, tree, triangles, bvh_tri_indices, right_centroids);
 }

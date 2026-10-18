@@ -287,6 +287,7 @@ void SoftwarePathTracer::Render()
 	Matrix viewMatrix{ scene->camera.GetView() };
 	Matrix inverseViewMatrix{ viewMatrix.GetInverse() };
 
+	VisualizationMode vismod{ context_->debug_params.visualization_mode };
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < height; ++py)
 	{
@@ -295,7 +296,6 @@ void SoftwarePathTracer::Render()
 			Ray view_ray{ scene->camera.GetPosition() };
 			RayHitRecord closest_hit_record{};
 			ShadingInput shading_input{};
-			VisualizationMode vismod{ context_->debug_params.visualization_mode };
 			ColorRgba final_color{};
 
 			//view_ray.direction = GetRayDirection(px, py, float(width), float(height));
