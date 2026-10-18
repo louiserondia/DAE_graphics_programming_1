@@ -234,8 +234,26 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 	return false;
 }
 
+ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position)
+{
+	switch (light->type)
+	{
+	case LightType::kPoint:
+	{
+		const float dist_square{ (light->origin - world_position).SqrMagnitude() };
+
+		return light->color * (light->intensity / dist_square);
+	}
+	case LightType::kDirectional:
+		return light->color * light->intensity;
+	default:
+		return ColorRgba{};
+	}
+}
+
 ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si)
 {
+	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	ColorRgba color{};
 
 	if (vm == VisualizationMode::kDepth) {
@@ -244,8 +262,21 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 		color = { scaled_t, scaled_t, scaled_t };
 	}
 	else if (vm == VisualizationMode::kNone) {
-		const uint32_t idx{ hit.object_index };
-		color = { float(idx & 1), float((idx >> 1) & 1), float((idx >> 2) & 1) };
+		for (const Light* light : scene->lights_factory.GetAll()) 
+		{
+			Vector3 light_dir{ light->type == LightType::kDirectional ?	-light->direction : light->origin - si.world_position };
+			//const float light_distance{ light_dir.Normalize() };
+
+			const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
+			if (cos_theta <= 0) // lambert's cosine law : lights below horizon dont contribute
+				continue;
+
+			color += cos_theta * CalculateRadiance(light, si.world_position);
+
+		}
+		// still too bright i think
+		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch
+		color = color.ToSrgb();
 	}
 	else if (vm == VisualizationMode::kNormals) {
 		const Vector3& n{ si.world_normal };
@@ -288,6 +319,7 @@ void SoftwarePathTracer::Render()
 	Matrix inverseViewMatrix{ viewMatrix.GetInverse() };
 
 	VisualizationMode vismod{ context_->debug_params.visualization_mode };
+
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < height; ++py)
 	{
@@ -306,12 +338,15 @@ void SoftwarePathTracer::Render()
 			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record) };
 			if (did_hit) {
 				shading_input = ConstructShadingInput(closest_hit_record);
+
 				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
 			}
+
+
 			if (yo) final_color = { 1, 0, 0 };
 
 			// Convert gradient value to color.
-			final_color.MaxToOne();
+			//final_color.MaxToOne();
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
