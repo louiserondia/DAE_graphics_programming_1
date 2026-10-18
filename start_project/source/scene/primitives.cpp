@@ -44,7 +44,9 @@ static void BVH(
 	uint32_t node_index,
 	std::vector<BVHNode>& tree,
 	std::vector<std::pair<Vector4, AABB>>& triangles,
-	std::vector<uint32_t>& bvh_tri_indices)
+	std::vector<uint32_t>& bvh_tri_indices,
+	const AABB &centroid_bounds
+)
 {
 	BVHNode& node{ tree[node_index] };
 
@@ -53,7 +55,7 @@ static void BVH(
 		return;
 
 	// 1. find longest side and cut in two
-	Vector3 size{ node.bounds.GetSize() };
+	Vector3 size{ centroid_bounds.GetSize() };
 	size.x = abs(size.x);
 	size.y = abs(size.y);
 	size.z = abs(size.z);
@@ -66,7 +68,7 @@ static void BVH(
 		size.y > size.x && size.y > size.z ? uint8_t(1) : uint8_t(2)
 	};
 
-	const float mid{ node.bounds.min[biggest] + (node.bounds.max[biggest] - node.bounds.min[biggest]) / 2 };
+	const float mid{ centroid_bounds.min[biggest] + (centroid_bounds.max[biggest] - centroid_bounds.min[biggest]) / 2 };
 
 	// bvh_tri_indices is the array of indices of the triangles, sorted by node, 
 	// we run through the indices of parent node and split them in two temporary arrays
@@ -76,6 +78,8 @@ static void BVH(
 
 	std::vector<uint32_t> left_temp;
 	std::vector<uint32_t> right_temp;
+	AABB left_centroids{};
+	AABB right_centroids{};
 
 	left_temp.reserve(node.tri_count / 3);
 	right_temp.reserve(node.tri_count / 3);
@@ -84,33 +88,25 @@ static void BVH(
 	{
 		uint32_t tri_index{ bvh_tri_indices[index] };
 
-		Vector4 tri_centroid{ triangles.at(tri_index).first }; // using centroid to build aabb 
-		//AABB tri_bounds{ triangles.at(tri_index).second }; // using triangle's aabb to build aabb 
+		AABB tri_bounds{ triangles.at(tri_index).second };
+		Vector4 tri_centroid{ triangles.at(tri_index).first };
 		if (tri_centroid[biggest] < mid)
 		{
 			left_temp.push_back(tri_index);
-			left.bounds.ExpandToInclude(tri_centroid);
+			left.bounds.ExpandToInclude(tri_bounds);
+			left_centroids.ExpandToInclude(tri_centroid);
+
 		}
 		else
 		{
 			right_temp.push_back(tri_index);
-			right.bounds.ExpandToInclude(tri_centroid);
+			right.bounds.ExpandToInclude(tri_bounds);
+			right_centroids.ExpandToInclude(tri_centroid);
 		}
 	}
 
 	if (left_temp.empty() || right_temp.empty()) {
-		std::cerr << "----\nleft : " << left_temp.size() << " right : " << right_temp.size() << std::endl;
-		float cmin{ FLT_MAX }, cmax{ -FLT_MAX };
-		for (uint32_t i{ node.first_tri }; i < node.first_tri + node.tri_count; i++)
-		{
-			float c{ triangles[bvh_tri_indices[i]].first[biggest] };
-			cmin = std::min(cmin, c);
-			cmax = std::max(cmax, c);
-		}
-		std::cerr << "axis " << int(biggest)
-			<< " bounds [" << node.bounds.min[biggest] << ", " << node.bounds.max[biggest] << "]"
-			<< " mid " << mid
-			<< " centroids [" << cmin << ", " << cmax << "]\n";
+		std::cerr << "Bvh split error left side : " << left_temp.size() << ", right side : " << right_temp.size() << std::endl;
 		return;
 	}
 
@@ -145,8 +141,8 @@ static void BVH(
 	left_temp.clear();
 	right_temp.clear();
 
-	BVH(left_tree_pos, tree, triangles, bvh_tri_indices);
-	BVH(left_tree_pos + 1, tree, triangles, bvh_tri_indices);
+	BVH(left_tree_pos, tree, triangles, bvh_tri_indices, left_centroids);
+	BVH(left_tree_pos + 1, tree, triangles, bvh_tri_indices, right_centroids);
 }
 
 // careful !! im sending the index of the node and not the node ref because ref can be invalidated during pushback !
@@ -180,7 +176,7 @@ void TriangleMesh::UpdateAABB()
 
 	tree.push_back(root);
 
-	BVH(0, tree, triangles, bvh_tri_indices);
+	BVH(0, tree, triangles, bvh_tri_indices, root.bounds);
 	bvh_nodes = std::move(tree);
 }
 

@@ -104,11 +104,6 @@ std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
 	RayHitRecord closest_hit{};
 	AABB aabb{ node.bounds };
 
-	//if (transform.has_value()) {
-	//	aabb.min = transform.value().TransformPoint(aabb.min);
-	//	aabb.max = transform.value().TransformPoint(aabb.max);
-	//}
-
 	bool did_hit_AABB{ HitTestAABB(aabb, ray) };
 
 	if (!did_hit_AABB)
@@ -134,14 +129,10 @@ std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
 			triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
 
 			did_hit = HitTestTriangle(triangle, ray, temp_hit);
-			if (did_hit) {
-
-				if (temp_hit.t < closest_hit.t)
-					//if (did_hit && temp_hit.t < closest_hit.t)
-				{
-					closest_hit = temp_hit;
-					closest_hit.vertex_indices = { index0, index1, index2 };
-				}
+			if (did_hit && temp_hit.t < closest_hit.t)
+			{
+				closest_hit = temp_hit;
+				closest_hit.vertex_indices = { index0, index1, index2 };
 			}
 		}
 
@@ -211,13 +202,13 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
 			break;
 		}
-		case PrimitiveType::kTriangleMesh: // could be recursive and call as triangle ?
+		case PrimitiveType::kTriangleMesh:
 		{
 			TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
 			if (!mesh->bvh_nodes.size()) break;
 
-			auto mesh_hit{ BVHTraversal(0, ray, mesh, object.instance_transformation) };
+			auto mesh_hit{ BVHTraversal(0, final_ray, mesh, object.instance_transformation) };
 			if (mesh_hit.has_value()) {
 				did_hit = true;
 				temp_hit = mesh_hit.value();
@@ -306,6 +297,9 @@ void SoftwarePathTracer::Render()
 			ShadingInput shading_input{};
 			VisualizationMode vismod{ context_->debug_params.visualization_mode };
 			ColorRgba final_color{};
+
+			//view_ray.direction = GetRayDirection(px, py, float(width), float(height));
+			//view_ray = viewMatrix.TransformRay(view_ray);
 
 			view_ray.direction = inverseViewMatrix * GetRayDirection(px, py, float(width), float(height));
 
