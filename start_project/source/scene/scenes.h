@@ -181,7 +181,7 @@ namespace gfx
 	{
 		float light_time{ 0.f };
 		uint32_t light_index{ 0 };
-		bool rotating_lights{ true };
+		bool rotating_lights{ false }; // yo
 
 		void Setup() override
 		{
@@ -190,11 +190,13 @@ namespace gfx
 			camera.SetFovAngle(45.f);
 
 			// Light setup
-			light_index =lights_factory.Create<Light>(Light{
+			light_index =
+				lights_factory.Create<Light>(Light{
 				.origin = {0.f, 4.f, 5.f},
 				.color = ColorRgba::White(),
 				.intensity = 50.f,
 				.type = LightType::kPoint });
+		
 
 			// Material setup
 			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(

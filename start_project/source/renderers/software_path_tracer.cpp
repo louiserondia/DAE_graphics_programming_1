@@ -90,7 +90,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return si;
 }
 
-// question: couldnt we optimise by no even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
+// question: couldnt we optimise by not even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
 
 // either closest hit parameter or return if hit
 std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
@@ -240,7 +240,7 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	{
 	case LightType::kPoint:
 	{
-		const float dist_square{ (light->origin - world_position).SqrMagnitude() };
+		const float dist_square{ (world_position - light->origin).SqrMagnitude() };
 
 		return light->color * (light->intensity / dist_square);
 	}
@@ -265,7 +265,8 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 		for (const Light* light : scene->lights_factory.GetAll()) 
 		{
 			Vector3 light_dir{ light->type == LightType::kDirectional ?	-light->direction : light->origin - si.world_position };
-			//const float light_distance{ light_dir.Normalize() };
+			const float light_distance{ light_dir.Normalize() };
+			(void)light_distance;
 
 			const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
 			if (cos_theta <= 0) // lambert's cosine law : lights below horizon dont contribute
@@ -340,6 +341,7 @@ void SoftwarePathTracer::Render()
 				shading_input = ConstructShadingInput(closest_hit_record);
 
 				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
+				final_color.Clamp();
 			}
 
 
