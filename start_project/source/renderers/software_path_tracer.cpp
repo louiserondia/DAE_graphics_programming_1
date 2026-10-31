@@ -7,6 +7,7 @@
 #include <scenes.h>
 #include <intersections.h>
 #include <cmath>
+#include <limits>
 #include "../core/utils.h" // loulou
 
 using namespace gfx;
@@ -16,7 +17,8 @@ using namespace gfx;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{}
+{
+}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -93,12 +95,11 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 // question: couldnt we optimise by not even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
 
 // either closest hit parameter or return if hit
-std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
-	size_t node_index,
+std::pair<bool, std::optional<RayHitRecord>> SoftwarePathTracer::BVHTraversal(size_t node_index,
 	const Ray& ray,
 	TriangleMesh* mesh,
-	const std::optional<Matrix>& transform
-)
+	const std::optional<Matrix>& transform,
+	bool ignore_record)
 {
 	BVHNode& node{ mesh->bvh_nodes[node_index] };
 	RayHitRecord closest_hit{};
@@ -107,7 +108,7 @@ std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
 	bool did_hit_AABB{ HitTestAABB(aabb, ray) };
 
 	if (!did_hit_AABB)
-		return std::nullopt;
+		return std::make_pair(false, std::nullopt);
 
 	if (node.IsLeaf()) {
 		bool did_hit{};
@@ -128,7 +129,12 @@ std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
 
 			triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
 
-			did_hit = HitTestTriangle(triangle, ray, temp_hit);
+			did_hit = HitTestTriangle(triangle, ray, temp_hit, ignore_record);
+
+			if (did_hit && ignore_record)
+			{
+				return std::make_pair(true, std::nullopt);
+			}
 			if (did_hit && temp_hit.t < closest_hit.t)
 			{
 				closest_hit = temp_hit;
@@ -137,29 +143,31 @@ std::optional<RayHitRecord> SoftwarePathTracer::BVHTraversal(
 		}
 
 		if (closest_hit.t < ray.max) {
-			return closest_hit;
+			return std::make_pair(true, closest_hit);
 		}
-		return std::nullopt;
+		return std::make_pair(false, std::nullopt);
 	}
 
 	auto left_child_index{ node.left_child };
 
-	auto left{ BVHTraversal(left_child_index, ray, mesh, transform) };
-	auto right{ BVHTraversal(left_child_index + 1, ray, mesh, transform) };
+	auto left{ BVHTraversal(left_child_index, ray, mesh, transform, ignore_record) };
+	auto right{ BVHTraversal(left_child_index + 1, ray, mesh, transform, ignore_record) };
 
-	if (left.has_value() && right.has_value())
-		return left.value().t < right.value().t ? left : right;
-	else if (left.has_value())
+	if ((left.first || right.first) && ignore_record)
+		return std::make_pair(true, std::nullopt);
+
+	if (left.first && right.first)
+		return left.second.value().t < right.second.value().t ? left : right;
+	else if (left.first)
 		return left;
-	else if (right.has_value())
+	else if (right.first)
 		return right;
 	else
-		return std::nullopt;
+		return std::make_pair(false, std::nullopt);
 }
 
 bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record)
 {
-	(void)ignore_record;
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const auto& factory{ scene->primitives_factory };
 
@@ -185,21 +193,21 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		{
 			Sphere* sphere{ factory.GetAs<Sphere>(object.primitive_index) };
 
-			did_hit = HitTestSphere(*sphere, final_ray, temp_hit);
+			did_hit = HitTestSphere(*sphere, final_ray, temp_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kPlane:
 		{
 			Plane* plane{ factory.GetAs<Plane>(object.primitive_index) };
 
-			did_hit = HitTestPlane(*plane, final_ray, temp_hit);
+			did_hit = HitTestPlane(*plane, final_ray, temp_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kTriangle:
 		{
 			Triangle* triangle{ factory.GetAs<Triangle>(object.primitive_index) };
 
-			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit);
+			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kTriangleMesh:
@@ -208,10 +216,15 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 			if (!mesh->bvh_nodes.size()) break;
 
-			auto mesh_hit{ BVHTraversal(0, final_ray, mesh, object.instance_transformation) };
-			if (mesh_hit.has_value()) {
+			auto pair_mesh_hit{ BVHTraversal(0, final_ray, mesh, object.instance_transformation, ignore_record) };
+			
+			// for shadow ray, we just want to know if sth hit, so return instantly
+			if (pair_mesh_hit.first && ignore_record) {
+				return true;
+			}
+			if (pair_mesh_hit.first) {
 				did_hit = true;
-				temp_hit = mesh_hit.value();
+				temp_hit = pair_mesh_hit.second.value();
 			}
 			break;
 		}
@@ -220,7 +233,11 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 			break;
 		}
 
-		if (did_hit and temp_hit.t < closest_hit.t)
+		if (did_hit && ignore_record) {
+			return true;
+		}
+
+		if (did_hit && temp_hit.t < closest_hit.t)
 		{
 			closest_hit = temp_hit;
 			closest_hit.object_index = uint32_t(i);
@@ -262,20 +279,29 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 		color = { scaled_t, scaled_t, scaled_t };
 	}
 	else if (vm == VisualizationMode::kNone) {
-		for (const Light* light : scene->lights_factory.GetAll()) 
+		for (const Light* light : scene->lights_factory.GetAll())
 		{
-			Vector3 light_dir{ light->type == LightType::kDirectional ?	-light->direction : light->origin - si.world_position };
+			Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
 			const float light_distance{ light_dir.Normalize() };
-			(void)light_distance;
 
 			const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
 			if (cos_theta <= 0) // lambert's cosine law : lights below horizon dont contribute
 				continue;
 
-			color += cos_theta * CalculateRadiance(light, si.world_position);
+			const Ray shadow_ray{
+				.origin = si.world_position,
+				.direction = light_dir,
+				.min = 0.001f,
+				.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
+			};
+			RayHitRecord shadow_hit{};
 
+			if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
+				continue;
+
+			color += cos_theta * CalculateRadiance(light, si.world_position);
 		}
-		// still too bright i think
+
 		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch
 		color = color.ToSrgb();
 	}
@@ -336,7 +362,7 @@ void SoftwarePathTracer::Render()
 
 			view_ray.direction = inverseViewMatrix * GetRayDirection(px, py, float(width), float(height));
 
-			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record) };
+			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record, false) };
 			if (did_hit) {
 				shading_input = ConstructShadingInput(closest_hit_record);
 

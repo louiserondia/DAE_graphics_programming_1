@@ -17,11 +17,8 @@ namespace gfx
 {
 	//--- Intersection Tests ---
 	[[maybe_unused]]
-	static bool HitTestSphere(const Sphere& sphere, const Ray& ray,
-		RayHitRecord& hit_record, const bool ignore_hit_record = false)
+	static bool HitTestSphere(const Sphere& sphere, const Ray& ray,	RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		(void)ignore_hit_record;
-
 		const Vector3 sphere_to_ray{ ray.origin - sphere.origin };
 
 		// ----- Analytical way -----
@@ -46,33 +43,31 @@ namespace gfx
 		//const float t0{ tca - thc };
 		//const float t1{ tca + thc };
 
-		hit_record.ray = ray;
+		if (!ignore_hit_record)
+			hit_record.ray = ray;
 
-		if (t0 > ray.min && t0 < ray.max) {
+		if (t0 > ray.min && t0 < ray.max)
 			hit_record.t = t0;
-			return true;
-		}
-		if (t1 > ray.min && t1 < ray.max) // we're "inside" the sphere
-		{
+		else if (t1 > ray.min && t1 < ray.max) // we're "inside" the sphere
 			hit_record.t = t1;
-			return true;
-		}
-		return false;
+		else
+			return false;
+		return true;
 	}
 
 	[[maybe_unused]]
-	static bool HitTestPlane(const Plane& plane, const Ray& ray,
-		RayHitRecord& hit_record, const bool ignore_hit_record = false)
+	static bool HitTestPlane(const Plane& plane, const Ray& ray, RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		(void)ignore_hit_record;
 		const Vector3 ray_to_plane{ plane.origin - ray.origin };
 		float division{ Vector3::Dot(ray.direction , plane.normal) };
-		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / std::min(division, FLT_EPSILON) };
+		const float t{ Vector3::Dot(ray_to_plane, plane.normal) / std::min(division, std::numeric_limits<float>::min()) };
 
 
 		if (t >= ray.min && t <= ray.max) {
-			hit_record.ray = ray;
-			hit_record.t = t;
+			if (!ignore_hit_record) {
+				hit_record.ray = ray;
+				hit_record.t = t;
+			}
 
 			if (plane.half_extent.has_value()) // is finite
 			{
@@ -93,11 +88,8 @@ namespace gfx
 	}
 
 	[[maybe_unused]]
-	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray,
-		RayHitRecord& hit_record, const bool ignore_hit_record = false)
+	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray, RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		(void)triangle; (void)ray; (void)hit_record; (void)ignore_hit_record;
-
 		const float dot{ Vector3::Dot(triangle.normal, ray.direction) };
 
 		// cull
@@ -121,16 +113,18 @@ namespace gfx
 		//test v
 		const Vector3 q{ Vector3::Cross(dist, edge1) };
 		const float v{ Vector3::Dot(ray.direction, q) * inv_det };
-		if (v < 0 || (u + v) > 1) return false;
+		if (v < 0 || (u + v) > 1) return false; 
 
 		//test t (bounded to the ray's valid interval)
 		const float t{ Vector3::Dot(edge2, q) * inv_det };
 		if (t < ray.min || t > ray.max) return false;
 
 		//valid hit, store result
-		hit_record.t = t;
-		hit_record.ray = ray;
-		hit_record.barycentric_coordinates = Vector2{ u, v };
+		if (!ignore_hit_record) {
+			hit_record.t = t;
+			hit_record.ray = ray;
+			hit_record.barycentric_coordinates = Vector2{ u, v };
+		}
 		return true;
 	}
 
