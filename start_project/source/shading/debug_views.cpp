@@ -69,6 +69,11 @@ namespace gfx
 			context.debug_params.sampling_paused = !context.debug_params.sampling_paused;
 			context.logger->LogInfo("Sampling: {}", context.debug_params.sampling_paused ? "Paused" : "Running");
 		}});
+		bindings.push_back({ SDL_SCANCODE_F7, "F7: Pause/Resume Sampling", [&context]()
+		{
+			context.debug_params.sampling_paused = !context.debug_params.sampling_paused;
+			context.logger->LogInfo("Sampling: {}", context.debug_params.sampling_paused ? "Paused" : "Running");
+		}});
 
 		// --- Rasterizer ---
 		bindings.push_back({ SDL_SCANCODE_F8, "F8: Cycle Cull Modes (All Triangle Primitives)", [&context]()
@@ -110,6 +115,10 @@ namespace gfx
 		{
 			context.debug_params.print_timer = !context.debug_params.print_timer;
 			context.logger->LogInfo("Printing Timer: {}", context.debug_params.print_timer);
+		}});
+		bindings.push_back({ SDL_SCANCODE_E, "E: pause rotation of lights", [&context]()
+		{
+			context.pause_light = !context.pause_light;
 		}});
 		bindings.push_back({ SDL_SCANCODE_P, "", [&context]()
 		{

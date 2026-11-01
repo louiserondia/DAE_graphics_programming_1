@@ -92,8 +92,7 @@ namespace gfx
 
 	template<typename T>
 	struct has_normal_texture<T, std::void_t<decltype(std::declval<T>().normal_texture)>> :
-		std::true_type {
-	};
+		std::true_type {};
 
 	template<typename ParamType>
 	Vector3 SampleNormal(const ParamType& params, const ShadingInput& input,
@@ -168,8 +167,10 @@ namespace gfx
 
 		//--- Public Functions ---
 		[[nodiscard]] const ParamType& GetParams() const { return params_; }
-		[[nodiscard]] AlphaMode GetAlphaMode() const override 
-		{ return params_.alpha_params.mode; }
+		[[nodiscard]] AlphaMode GetAlphaMode() const override
+		{
+			return params_.alpha_params.mode;
+		}
 
 		//--- Pure Virtual Functions ---
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
@@ -188,7 +189,7 @@ namespace gfx
 		explicit UnlitMaterial(UnlitMaterialParams&& params) : MaterialTemplate(std::move(params)) {}
 
 		//--- Overrides ---
-		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input, 
+		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
 			const Factory<Texture>& textures) const override
 		{
 			//TODO
@@ -216,22 +217,57 @@ namespace gfx
 		explicit LambertMaterial(LambertMaterialParams&& params) : MaterialTemplate(std::move(params)) {}
 
 		//--- Overrides ---
-		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
-			const Factory<Texture>& textures) const override
+		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input, const Factory<Texture>& textures) const override
 		{
 			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)textures;
-			return {};
+
+			// rho = albedo = kd (diffuse coef = how the matte material reflects between 0 and 1) * cd (difuse color)
+			// divide by PI to get Lambert BRDF = diffuse reflectance (how much incoming light it reflects diffusely), here same in every direction
+
+			// half vector
+			// (view dir + light direction (from point to source)) / |view dir + light dir|
+
+			// PBR Cook Torrance BRDF
+			// (D * F * G) / (4 * Dot(view, normal) * Dot(light, normal)) 
+
+			// 𝐷, Normal Distribution Function -> How many microfacets point in right direction ?
+			// 𝐹, Fresnel Function -> How reflective are the microfacets ?
+			// 𝐺, Geometry Function -> How much shadowing and m
+
+			// for D (Normal Distribution) : Trowbridge-Reitz GGX
+			// roughness^4 / ( pi * ( Dot(normal, halfvector)² * (roughness^4 - 1) + 1)^2 )
+
+			// Fresnel : Schlick's approx
+			// F0 + (𝟏 − F0) * (𝟏 − Dot(halfvector, view dir) )^5
+			// F0 = (metalness == 0) ? (0.04, 0.04, 0.04) : albedo
+
+			// Geometry funtion : Schlick GGX
+			// Dot(normal, view) / Dot(normal, view) * (1 - k) + k
+			// k = rougness remapped, depends on direct ot indirect light but we use direct here
+			// k_direct = (roughness + 1)^2 / 8
+			// k_indirect = roughness^2 / 2
+
+			// smith
+			// Cook_Torrence(normal, view, k) * Cook_Torrence(normal, light, k)
+			// view to calculate shadowing and light to calculate masking
+
+			(void)input;
+			(void)textures;
+
+			SurfaceProperties sp{};
+
+			sp.albedo = params_.diffuse_color;
+			sp.shading_normal = input.world_normal;
+			return sp;
 		}
 
-		[[nodiscard]] ColorRgba Shade(const ShadingInput& input,
-			const SurfaceProperties& surface) const override
+		[[nodiscard]] ColorRgba Shade(const ShadingInput& input, const SurfaceProperties& surface) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)surface;
-			return {};
+
+			(void)input;
+			(void)surface;
+
+			return Lambert(params_.diffuse_reflectance, surface.albedo);
 		}
 	};
 

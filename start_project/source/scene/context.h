@@ -44,6 +44,8 @@ namespace gfx
 		std::unique_ptr<Timer> timer{ nullptr };
 		std::unique_ptr<SceneManager> scene_manager{ nullptr };
 		DebugParams debug_params{};
+
+		static bool pause_light;
 	};
 }
 #endif //CONTEXT_HEADER

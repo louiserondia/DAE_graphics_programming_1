@@ -25,19 +25,13 @@ namespace gfx
 	[[maybe_unused]]
 	static ColorRgba Lambert(const float kd, const ColorRgba& cd)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)kd; (void)cd;
-		return {};
+		return kd * cd / float(std::numbers::pi);
 	}
 
 	[[maybe_unused]]
 	static ColorRgba Lambert(const ColorRgba& kd, const ColorRgba& cd)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)kd; (void)cd;
-		return {};
+		return kd * cd / float(std::numbers::pi);
 	}
 
 	/**
@@ -50,10 +44,7 @@ namespace gfx
 	[[maybe_unused]]
 	static ColorRgba FresnelFunction_Schlick(const Vector3& h, const Vector3& v, const ColorRgba& f0)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)h; (void)v; (void)f0;
-		return {};
+		return f0 + (ColorRgba::White() - f0) * float(pow(1 - Vector3::Dot(h, v), 5));
 	}
 
 	/**
@@ -65,10 +56,9 @@ namespace gfx
 	[[maybe_unused]]
 	static float NormalDistribution_GGX(const Vector3& n, const Vector3& h, const float roughness)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)h; (void)roughness;
-		return {};
+		float alpha_square{ float(pow(roughness, 4)) };
+
+		return alpha_square / float(std::numbers::pi * pow(pow(Vector3::Dot(n, h), 2) * (alpha_square - 1) + 1, 2));
 	}
 
 	/**
@@ -82,10 +72,12 @@ namespace gfx
 	static float GeometryFunction_SchlickGGX(const Vector3& n, const Vector3& v, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)v; (void)roughness;
-		return {};
+		float dot_n_v{ Vector3::Dot(n, v) };
+		float k{ is_indirect ?
+			float(pow(roughness, 2) / 2) :
+			float(pow(roughness + 1, 2) / 8)
+		};
+		return dot_n_v / dot_n_v * (1 - k) + k;
 	}
 
 	/**
@@ -100,10 +92,37 @@ namespace gfx
 	static float GeometryFunction_Smith(const Vector3& n, const Vector3& v, const Vector3& l, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)v; (void)l; (void)roughness;
+		//float k{ is_indirect ?
+		//	pow(roughness, 2) / 2 :
+		//	pow(roughness + 1, 2) / 8
+		//};
+
+		//Cook_Torrence(n, v, k) * Cook_Torrence(n, l, k);
+
+		// cest surement une autre fonction pour le G de cook torrence
+
+		(void)n;
+		(void)l;
+		(void)v;
+		(void)roughness;
+		(void)is_indirect;
+
 		return {};
 	}
+
+	//[[maybe_unused]]
+	//static ColorRgba CookTorrence(const Vector3& n, const Vector3& v, const Vector3& l, const float roughness,
+	//	[[maybe_unused]] const bool is_indirect = false)
+	//{
+	//	Vector3 h{ v + l / (v + l).Magnitude() };
+	// auto f0{ (metalness == 0) ? (0.04, 0.04, 0.04) : albedo};
+
+	//	auto D{ NormalDistribution_GGX(n, h, roughness) };
+	//	auto F{ FresnelFunction_Schlick(h, v, f0) };
+	//	auto G{GeometryFunction_SchlickGGX(n, v, roughness, is_indirect)};
+
+	//	return  (D * F * G) / (4 * Vector3::Dot(v, n) * Vector3::Dot(l, n));
+	//	// use max 0, dot
+	//}
 }
 #endif

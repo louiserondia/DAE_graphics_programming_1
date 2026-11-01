@@ -17,8 +17,7 @@ using namespace gfx;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{
-}
+{}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -26,11 +25,12 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 // Public Functions
 // =============================================================================
 
-ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) {
+ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
+{
 	ShadingInput si{};
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
-	SceneObject& scene_object{ scene->objects[hit.object_index] };
-	Primitive* primitive = scene->primitives_factory.Get(scene_object.primitive_index);
+	const SceneObject& scene_object{ scene->objects[hit.object_index] };
+	Primitive* primitive{ scene->primitives_factory.Get(scene_object.primitive_index) };
 
 	bool has_transform{};
 
@@ -41,6 +41,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 		has_transform = true;
 	}
 
+	si.shadow_origin = si.world_position;
 	switch (primitive->type)
 	{
 	case PrimitiveType::kSphere:
@@ -71,17 +72,46 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	{
 		TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
-		auto vertices_index{ hit.vertex_indices.value() };
-		auto v0{ mesh->vertices[vertices_index[0]] };
-		auto v1{ mesh->vertices[vertices_index[1]] };
-		auto v2{ mesh->vertices[vertices_index[2]] };
+		const auto& vertices_index{ hit.vertex_indices.value() };
+		const Vector3 n0{ mesh->vertices[vertices_index[0]].normal.value() };
+		const Vector3 n1{ mesh->vertices[vertices_index[1]].normal.value() };
+		const Vector3 n2{ mesh->vertices[vertices_index[2]].normal.value() };
+		auto l{ n0.Magnitude() };
+		auto l1{ n1.Magnitude() };
+		(void)l;
+		(void)l1;
 
 		const float u{ hit.barycentric_coordinates.value().x };
 		const float v{ hit.barycentric_coordinates.value().y };
 		float w{ 1 - u - v };
 
-		Vector3 normal{ v0.normal.value() * w + v1.normal.value() * u + v2.normal.value() * v };
+		Vector3 normal{ n0 * w + n1 * u + n2 * v };
 		normal = has_transform ? scene_object.instance_transformation.value().TransformNormal(normal) : normal;
+
+		Vector3 tmpw{ si.world_position - mesh->vertices[vertices_index[0]].position };
+		Vector3 tmpu{ si.world_position - mesh->vertices[vertices_index[1]].position };
+		Vector3 tmpv{ si.world_position - mesh->vertices[vertices_index[2]].position };
+
+		float dotw = std::min(0.f, Vector3::Dot(tmpw, n0));
+		float dotu = std::min(0.f, Vector3::Dot(tmpu, n1));
+		float dotv = std::min(0.f, Vector3::Dot(tmpv, n2));
+
+		tmpw -= dotw * n0;
+		tmpu -= dotu * n1;
+		tmpv -= dotv * n2;
+
+		Vector3 tmp_sum{ has_transform ? scene_object.instance_transformation.value().TransformPoint(u * tmpu + v * tmpv + w * tmpw) : u * tmpu + v * tmpv + w * tmpw };
+
+		Vector3 p_prime{ si.world_position + tmp_sum };
+		//p_prime = has_transform ? scene_object.instance_transformation.value().TransformPoint(p_prime) : p_prime;
+
+		si.shadow_origin = p_prime;
+
+		Vector3 offset{
+		n0 * w * dotw + n1 * u * dotu + n2 * v * dotv
+		};
+		offset = has_transform ? scene_object.instance_transformation.value().TransformVector(offset) : offset;
+		//si.shadow_origin = si.world_position + offset + si.world_normal * 0.001f;
 
 		si.world_normal = normal;
 		break;
@@ -217,7 +247,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 			if (!mesh->bvh_nodes.size()) break;
 
 			auto pair_mesh_hit{ BVHTraversal(0, final_ray, mesh, object.instance_transformation, ignore_record) };
-			
+
 			// for shadow ray, we just want to know if sth hit, so return instantly
 			if (pair_mesh_hit.first && ignore_record) {
 				return true;
@@ -268,9 +298,10 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	}
 }
 
-ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, const ShadingInput& si)
+ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
+	const SceneObject& scene_object{ scene->objects[hit.object_index] };
 	ColorRgba color{};
 
 	if (vm == VisualizationMode::kDepth) {
@@ -279,17 +310,21 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 		color = { scaled_t, scaled_t, scaled_t };
 	}
 	else if (vm == VisualizationMode::kNone) {
+		const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
+		const SurfaceProperties surface{ material->GetSurfaceProperties(si, scene->textures_factory) };
+
 		for (const Light* light : scene->lights_factory.GetAll())
 		{
 			Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
 			const float light_distance{ light_dir.Normalize() };
+			si.light_direction = light_dir;
 
 			const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
 			if (cos_theta <= 0) // lambert's cosine law : lights below horizon dont contribute
 				continue;
 
 			const Ray shadow_ray{
-				.origin = si.world_position,
+				.origin = si.shadow_origin,
 				.direction = light_dir,
 				.min = 0.001f,
 				.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
@@ -299,7 +334,8 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 			if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
 				continue;
 
-			color += cos_theta * CalculateRadiance(light, si.world_position);
+			const ColorRgba brdf{ material->Shade(si, surface) };
+			color += cos_theta * brdf * CalculateRadiance(light, si.world_position);
 		}
 
 		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch

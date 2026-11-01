@@ -181,7 +181,7 @@ namespace gfx
 	{
 		float light_time{ 0.f };
 		uint32_t light_index{ 0 };
-		bool rotating_lights{ true }; // turn on/off rotation of lights
+		bool rotating_lights{ 1 }; // turn on/off rotation of lights rotation light
 
 		void Setup() override
 		{
@@ -237,7 +237,7 @@ namespace gfx
 
 		bool Update(const double delta_time) override
 		{
-			if (!rotating_lights)
+			if (!rotating_lights || Context::pause_light)
 				return false;
 
 			if (Light* light = lights_factory.GetAs<Light>(light_index))
@@ -247,9 +247,13 @@ namespace gfx
 				constexpr float center_y{ 7.f };
 				constexpr float center_z{ 5.f };
 				light->origin = {
-					std::cos(light_time) * radius,
+					float(std::cos(3 * std::numbers::pi / 2)) * radius,
 					center_y,
-					center_z + std::sin(light_time) * radius };
+					center_z + float(std::sin(3 * std::numbers::pi / 2)) * radius };
+				//light->origin = {
+				//	std::cos(light_time) * radius,
+				//	center_y,
+				//	center_z + std::sin(light_time) * radius };
 			}
 			return true;
 		}

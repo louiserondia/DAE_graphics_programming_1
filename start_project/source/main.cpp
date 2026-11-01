@@ -43,6 +43,10 @@ using namespace gfx;
 #else
 	#define CPU_FRAME_LIMITER_ENABLED 1
 #endif
+
+bool Context::pause_light = false;
+
+
 class FrameLimiter final
 {
 	double target_ms_{ 0.0 };
