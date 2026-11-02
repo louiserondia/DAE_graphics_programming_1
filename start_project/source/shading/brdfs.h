@@ -14,6 +14,7 @@
 #include <vector2.h>
 #include <vector3.h>
 #include <color.h>
+#include <materials.h>
 
 namespace gfx
 {
@@ -92,37 +93,27 @@ namespace gfx
 	static float GeometryFunction_Smith(const Vector3& n, const Vector3& v, const Vector3& l, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		//float k{ is_indirect ?
-		//	pow(roughness, 2) / 2 :
-		//	pow(roughness + 1, 2) / 8
-		//};
-
-		//Cook_Torrence(n, v, k) * Cook_Torrence(n, l, k);
-
-		// cest surement une autre fonction pour le G de cook torrence
-
-		(void)n;
-		(void)l;
-		(void)v;
-		(void)roughness;
-		(void)is_indirect;
-
-		return {};
+		return GeometryFunction_SchlickGGX(n, v, roughness, is_indirect) * GeometryFunction_SchlickGGX(n, l, roughness, is_indirect);
 	}
 
-	//[[maybe_unused]]
-	//static ColorRgba CookTorrence(const Vector3& n, const Vector3& v, const Vector3& l, const float roughness,
-	//	[[maybe_unused]] const bool is_indirect = false)
-	//{
-	//	Vector3 h{ v + l / (v + l).Magnitude() };
-	// auto f0{ (metalness == 0) ? (0.04, 0.04, 0.04) : albedo};
+	[[maybe_unused]]
+	static ColorRgba CookTorrence(
+		const Vector3& n,
+		const Vector3& v,
+		const Vector3& l,
+		const float roughness,
+		const ColorRgba &f0,
+		[[maybe_unused]] const bool is_indirect = false)
+	{
+		Vector3 h{ (v + l).Normalized() };
 
-	//	auto D{ NormalDistribution_GGX(n, h, roughness) };
-	//	auto F{ FresnelFunction_Schlick(h, v, f0) };
-	//	auto G{GeometryFunction_SchlickGGX(n, v, roughness, is_indirect)};
+		auto D{ NormalDistribution_GGX(n, h, roughness) };
+		auto F{ FresnelFunction_Schlick(h, v, f0) };
+		auto G{ GeometryFunction_Smith(n, v, l, roughness, is_indirect) };
 
-	//	return  (D * F * G) / (4 * Vector3::Dot(v, n) * Vector3::Dot(l, n));
-	//	// use max 0, dot
-	//}
+		float denominator{ (4 * std::max(Vector3::Dot(v, n), 0.f) * std::max(Vector3::Dot(l, n), 0.f)) };
+
+		return  (D * F * G) / std::max(denominator, 0.0001f);
+	}
 }
 #endif

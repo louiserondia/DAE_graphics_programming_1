@@ -283,20 +283,42 @@ namespace gfx
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
 			const Factory<Texture>& textures) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
+			SurfaceProperties sp{
+
+				.albedo = params_.albedo_color_factor,
+				.f0 = (params_.metallic_factor < 0.01f) ? ColorRgba{ 0.04f, 0.04f, 0.04f } : sp.albedo,
+				.attenuation_color = params_.attenuation_color,
+				.roughness = params_.roughness_factor,
+				.metallic = params_.metallic_factor,
+				.reflectance = params_.reflectance_factor,
+				.transmission = params_.transmission_factor,
+				.ior = params_.ior,
+				.attenuation_distance = params_.attenuation_distance,
+				.thickness = params_.thickness_factor,
+				.alpha_params = params_.alpha_params
+			};
+
 			(void)input; (void)textures;
-			return {};
+			return sp;
 		}
 
 		[[nodiscard]] ColorRgba Shade(const ShadingInput& input,
-			const SurfaceProperties& surface) const override
+			const SurfaceProperties& sp) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)surface;
-			return {};
+			const Vector3 half_vector{ (input.view_direction + input.light_direction).Normalized() };
+
+			ColorRgba ct{ CookTorrence(
+				input.world_normal,
+				input.view_direction,
+				input.light_direction,
+				sp.roughness,
+				sp.f0
+				) };
+			ColorRgba kd{ ColorRgba::White() - FresnelFunction_Schlick(half_vector, input.view_direction, sp.f0) };
+
+			return Lambert(kd, sp.albedo) + ct;
 		}
 	};
 }
 #endif //MATERIALS_HEADER
+//(void)input; (void)sp;

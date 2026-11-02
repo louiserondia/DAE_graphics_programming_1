@@ -35,6 +35,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	bool has_transform{};
 
 	si.world_position = hit.ray.origin + hit.t * hit.ray.direction;
+	si.view_direction = hit.ray.direction.Normalized();
+
 	if (scene_object.instance_transformation.has_value()) {
 		si.world_position = scene_object.instance_transformation.value().TransformPoint(si.world_position);
 		si.view_direction = scene_object.instance_transformation.value().TransformVector(si.view_direction);
@@ -73,46 +75,33 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 		TriangleMesh* mesh{ static_cast<TriangleMesh*>(primitive) };
 
 		const auto& vertices_index{ hit.vertex_indices.value() };
+		const Vector3 p0{ mesh->vertices[vertices_index[0]].position };
+		const Vector3 p1{ mesh->vertices[vertices_index[1]].position };
+		const Vector3 p2{ mesh->vertices[vertices_index[2]].position };
 		const Vector3 n0{ mesh->vertices[vertices_index[0]].normal.value() };
 		const Vector3 n1{ mesh->vertices[vertices_index[1]].normal.value() };
 		const Vector3 n2{ mesh->vertices[vertices_index[2]].normal.value() };
-		auto l{ n0.Magnitude() };
-		auto l1{ n1.Magnitude() };
-		(void)l;
-		(void)l1;
 
 		const float u{ hit.barycentric_coordinates.value().x };
 		const float v{ hit.barycentric_coordinates.value().y };
-		float w{ 1 - u - v };
+		const float w{ 1.f - u - v };
 
+		const Vector3 p_obj{ hit.ray.origin + hit.t * hit.ray.direction }; // position in object space, before transform (si.world_pos si transformed)
+
+		float dotw = std::min(0.f, Vector3::Dot(p_obj - p0, n0));
+		float dotu = std::min(0.f, Vector3::Dot(p_obj - p1, n1));
+		float dotv = std::min(0.f, Vector3::Dot(p_obj - p2, n2));
+
+		Vector3 p_prime{ p_obj - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
 		Vector3 normal{ n0 * w + n1 * u + n2 * v };
-		normal = has_transform ? scene_object.instance_transformation.value().TransformNormal(normal) : normal;
 
-		Vector3 tmpw{ si.world_position - mesh->vertices[vertices_index[0]].position };
-		Vector3 tmpu{ si.world_position - mesh->vertices[vertices_index[1]].position };
-		Vector3 tmpv{ si.world_position - mesh->vertices[vertices_index[2]].position };
-
-		float dotw = std::min(0.f, Vector3::Dot(tmpw, n0));
-		float dotu = std::min(0.f, Vector3::Dot(tmpu, n1));
-		float dotv = std::min(0.f, Vector3::Dot(tmpv, n2));
-
-		tmpw -= dotw * n0;
-		tmpu -= dotu * n1;
-		tmpv -= dotv * n2;
-
-		Vector3 tmp_sum{ has_transform ? scene_object.instance_transformation.value().TransformPoint(u * tmpu + v * tmpv + w * tmpw) : u * tmpu + v * tmpv + w * tmpw };
-
-		Vector3 p_prime{ si.world_position + tmp_sum };
-		//p_prime = has_transform ? scene_object.instance_transformation.value().TransformPoint(p_prime) : p_prime;
+		if (has_transform)
+		{
+			p_prime = scene_object.instance_transformation.value().TransformNormal(p_prime);
+			normal = scene_object.instance_transformation.value().TransformNormal(normal);
+		}
 
 		si.shadow_origin = p_prime;
-
-		Vector3 offset{
-		n0 * w * dotw + n1 * u * dotu + n2 * v * dotv
-		};
-		offset = has_transform ? scene_object.instance_transformation.value().TransformVector(offset) : offset;
-		//si.shadow_origin = si.world_position + offset + si.world_normal * 0.001f;
-
 		si.world_normal = normal;
 		break;
 	}
@@ -303,16 +292,13 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SceneObject& scene_object{ scene->objects[hit.object_index] };
 	ColorRgba color{};
+	const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
+	const SurfaceProperties surface{ material->GetSurfaceProperties(si, scene->textures_factory) };
 
-	if (vm == VisualizationMode::kDepth) {
-		const float max_depth{ 100.f };
-		const float scaled_t{ 1.f - std::clamp(hit.t / max_depth, 0.f, 1.f) };
-		color = { scaled_t, scaled_t, scaled_t };
-	}
-	else if (vm == VisualizationMode::kNone) {
-		const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
-		const SurfaceProperties surface{ material->GetSurfaceProperties(si, scene->textures_factory) };
-
+	switch (vm)
+	{
+	case VisualizationMode::kNone:
+	{
 		for (const Light* light : scene->lights_factory.GetAll())
 		{
 			Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
@@ -340,14 +326,42 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 
 		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch
 		color = color.ToSrgb();
+		break;
 	}
-	else if (vm == VisualizationMode::kNormals) {
+	case VisualizationMode::kNormals:
+	{
 		const Vector3& n{ si.world_normal };
 		color = {
 			(n.x + 1.f) * 0.5f,
 			(n.y + 1.f) * 0.5f,
 			(n.z + 1.f) * 0.5f
 		};
+		break;
+	}
+	case VisualizationMode::kAlbedo:
+		color = surface.albedo;
+		break;
+	case VisualizationMode::kMetallicRoughness:
+		// red AO, green roughness, blue metallic
+		color = ColorRgba{ 0.f, surface.roughness, surface.metallic };
+		break;
+	case VisualizationMode::kDepth:
+	{
+		const float max_depth{ 100.f };
+		const float scaled_t{ 1.f - std::clamp(hit.t / max_depth, 0.f, 1.f) };
+		color = { scaled_t, scaled_t, scaled_t };
+		break;
+	}
+	case VisualizationMode::kUV:
+	{
+		//color = ColorRgba{hit.uv.x, hit.uv.y, 0.0f};
+		break;
+	}
+	case VisualizationMode::kBounceCount:
+	case VisualizationMode::kDirectOnly:
+	case VisualizationMode::kMax:
+	default:
+		break;
 	}
 
 	//debug
