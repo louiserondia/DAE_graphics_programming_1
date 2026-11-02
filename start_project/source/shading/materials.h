@@ -18,6 +18,7 @@
 #include <texture.h>
 #include <factory.h>
 #include <debug_views.h>
+#include <math.h>
 
 namespace gfx
 {
@@ -283,12 +284,18 @@ namespace gfx
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
 			const Factory<Texture>& textures) const override
 		{
+			const float r{ (params_.ior - 1.f) / (params_.ior + 1.f) };
+			const float f0_dielectric{ r * r };
+			//.f0 = (params_.metallic_factor < 0.01f) ? ColorRgba{ 0.04f, 0.04f, 0.04f } : params_.albedo_color_factor,
+
+		// clamp roughness to 0.045 or higher
+
 			SurfaceProperties sp{
 
 				.albedo = params_.albedo_color_factor,
-				.f0 = (params_.metallic_factor < 0.01f) ? ColorRgba{ 0.04f, 0.04f, 0.04f } : sp.albedo,
 				.attenuation_color = params_.attenuation_color,
-				.roughness = params_.roughness_factor,
+				.shading_normal = input.world_normal, // later maybe normal map from texture
+				.roughness = std::clamp(params_.roughness_factor, 0.045f, params_.roughness_factor),
 				.metallic = params_.metallic_factor,
 				.reflectance = params_.reflectance_factor,
 				.transmission = params_.transmission_factor,
@@ -297,6 +304,8 @@ namespace gfx
 				.thickness = params_.thickness_factor,
 				.alpha_params = params_.alpha_params
 			};
+
+			sp.f0 = ColorRgba::Lerp(f0_dielectric, sp.albedo, sp.metallic);
 
 			(void)input; (void)textures;
 			return sp;
@@ -307,7 +316,7 @@ namespace gfx
 		{
 			const Vector3 half_vector{ (input.view_direction + input.light_direction).Normalized() };
 
-			ColorRgba ct{ CookTorrence(
+			ColorRgba specular{ CookTorrence(
 				input.world_normal,
 				input.view_direction,
 				input.light_direction,
@@ -315,8 +324,9 @@ namespace gfx
 				sp.f0
 				) };
 			ColorRgba kd{ ColorRgba::White() - FresnelFunction_Schlick(half_vector, input.view_direction, sp.f0) };
+			// could compute Fresnel only once
 
-			return Lambert(kd, sp.albedo) + ct;
+			return Lambert(kd, sp.albedo) + specular;
 		}
 	};
 }
