@@ -270,6 +270,8 @@ const Matrix& Matrix::Inverse()
 
 void Matrix::InvalidateCache() const
 {
+	// NOTE: not safe while other threads hold a reference from GetInverse()!
+	std::lock_guard lock(inverse_mutex);
 	cached_inverse.reset();
 	inverse_computed.store(false, std::memory_order_release);
 }
@@ -295,19 +297,27 @@ const Matrix& Matrix::Transpose()
 
 const Matrix& Matrix::GetInverse() const
 {
+	// Double-checked locking: fast lock-free path once computed, only one thread computes.
 	if (!inverse_computed.load(std::memory_order_acquire))
 	{
-		cached_inverse = std::make_unique<Matrix>(*this);
-		const float det{ cached_inverse->Determinant() };
-		// If matrix is not invertible, use identity instead!
-		if (std::abs(det) < std::numeric_limits<float>::epsilon())
-			*cached_inverse = CreateIdentity();
-		else
-			cached_inverse->Inverse();
-		inverse_computed.store(true, std::memory_order_release);
+		std::lock_guard lock(inverse_mutex);
+		if (!inverse_computed.load(std::memory_order_relaxed))
+		{
+			// Build fully in a local before publishing, so no thread sees a half-computed inverse.
+			auto inverse = std::make_unique<Matrix>(*this);
+			const float det{ inverse->Determinant() };
+			// If matrix is not invertible, use identity instead!
+			if (std::abs(det) < std::numeric_limits<float>::epsilon())
+				*inverse = CreateIdentity();
+			else
+				inverse->Inverse();
+			cached_inverse = std::move(inverse);
+			inverse_computed.store(true, std::memory_order_release);
+		}
 	}
 	return *cached_inverse;
 }
+
 
 float Matrix::Determinant() const
 {

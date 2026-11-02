@@ -33,13 +33,13 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	Primitive* primitive{ scene->primitives_factory.Get(scene_object.primitive_index) };
 
 	bool has_transform{};
-
-	si.world_position = hit.ray.origin + hit.t * hit.ray.direction;
+	const Vector3 position_obj_space{ hit.ray.origin + hit.t * hit.ray.direction };
+	si.world_position = position_obj_space;
 	si.view_direction = hit.ray.direction.Normalized();
 
 	if (scene_object.instance_transformation.has_value()) {
 		si.world_position = scene_object.instance_transformation.value().TransformPoint(si.world_position);
-		si.view_direction = scene_object.instance_transformation.value().TransformVector(si.view_direction);
+		si.view_direction = scene_object.instance_transformation.value().TransformVector(si.view_direction).Normalized();
 		has_transform = true;
 	}
 
@@ -50,24 +50,21 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	{
 		Sphere* sphere{ static_cast<Sphere*>(primitive) };
 
-		const Vector3 origin{ has_transform ? scene_object.instance_transformation.value()[3] : sphere->origin };
-		si.world_normal = (si.world_position - origin) / sphere->radius;
+		si.world_normal = (position_obj_space - sphere->origin) / sphere->radius;
 		break;
 	}
 	case PrimitiveType::kPlane:
 	{
 		Plane* plane{ static_cast<Plane*>(primitive) };
 
-		const Vector3 normal{ has_transform ? scene_object.instance_transformation.value().TransformNormal(plane->normal) : plane->normal };
-		si.world_normal = normal;
+		si.world_normal = plane->normal;
 		break;
 	}
 	case PrimitiveType::kTriangle:
 	{
 		Triangle* triangle{ static_cast<Triangle*>(primitive) };
 
-		const Vector3 normal{ has_transform ? scene_object.instance_transformation.value().TransformNormal(triangle->normal) : triangle->normal };
-		si.world_normal = normal;
+		si.world_normal = triangle->normal;
 		break;
 	}
 	case PrimitiveType::kTriangleMesh:
@@ -86,19 +83,16 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 		const float v{ hit.barycentric_coordinates.value().y };
 		const float w{ 1.f - u - v };
 
-		const Vector3 p_obj{ hit.ray.origin + hit.t * hit.ray.direction }; // position in object space, before transform (si.world_pos si transformed)
+		float dotw = std::min(0.f, Vector3::Dot(position_obj_space - p0, n0));
+		float dotu = std::min(0.f, Vector3::Dot(position_obj_space - p1, n1));
+		float dotv = std::min(0.f, Vector3::Dot(position_obj_space - p2, n2));
 
-		float dotw = std::min(0.f, Vector3::Dot(p_obj - p0, n0));
-		float dotu = std::min(0.f, Vector3::Dot(p_obj - p1, n1));
-		float dotv = std::min(0.f, Vector3::Dot(p_obj - p2, n2));
-
-		Vector3 p_prime{ p_obj - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
+		Vector3 p_prime{ position_obj_space - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
 		Vector3 normal{ n0 * w + n1 * u + n2 * v };
 
 		if (has_transform)
 		{
 			p_prime = scene_object.instance_transformation.value().TransformNormal(p_prime);
-			normal = scene_object.instance_transformation.value().TransformNormal(normal);
 		}
 
 		si.shadow_origin = p_prime;
@@ -108,6 +102,11 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	default:
 		break;
 	}
+	if (has_transform) 
+	{
+		si.world_normal = scene_object.instance_transformation.value().TransformNormal(si.world_normal);
+	}
+
 	return si;
 }
 
@@ -326,6 +325,7 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 
 		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch
 		color = color.ToSrgb();
+		color.Clamp();
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -407,24 +407,17 @@ void SoftwarePathTracer::Render()
 			ShadingInput shading_input{};
 			ColorRgba final_color{};
 
-			//view_ray.direction = GetRayDirection(px, py, float(width), float(height));
-			//view_ray = viewMatrix.TransformRay(view_ray);
-
 			view_ray.direction = inverseViewMatrix * GetRayDirection(px, py, float(width), float(height));
+			view_ray.direction.Normalize();
 
 			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record, false) };
-			if (did_hit) {
+			if (did_hit)
+			{
 				shading_input = ConstructShadingInput(closest_hit_record);
-
 				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
-				final_color.Clamp();
 			}
 
-
 			if (yo) final_color = { 1, 0, 0 };
-
-			// Convert gradient value to color.
-			//final_color.MaxToOne();
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(

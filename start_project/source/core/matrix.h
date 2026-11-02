@@ -13,6 +13,8 @@
 //--- Standard Includes ---
 #include <atomic>
 #include <memory>
+#include <mutex>
+
 
 namespace gfx
 {
@@ -100,6 +102,7 @@ namespace gfx
 
 		mutable std::atomic<bool> inverse_computed{ false };
 		mutable std::unique_ptr<Matrix> cached_inverse;
+		mutable std::mutex inverse_mutex;
 
 		const Matrix& Inverse();
 		void InvalidateCache() const;

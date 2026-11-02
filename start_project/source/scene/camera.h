@@ -45,17 +45,24 @@ namespace gfx
 
 		//--- Functions ---
 		void MoveForward(const float delta)
-		{ position_ += forward_ * delta; dirty_ = true; }
+		{
+			position_ += forward_ * delta; dirty_ = true;
+		}
 		void MoveRight(const float delta)
-		{ position_ += right_ * delta; dirty_ = true; }
+		{
+			position_ += right_ * delta; dirty_ = true;
+		}
 		void MoveUp(const float delta)
-		{ position_ += Vector4::UnitY() * delta; dirty_ = true; }
+		{
+			position_ += Vector4::UnitY() * delta; dirty_ = true;
+		}
 
 		void Pitch(const float angle)
 		{
 			const Matrix rotation = Matrix::CreateRotationAxis(right_, angle);
 			forward_ = rotation.TransformVector(forward_);
 			up_ = rotation.TransformVector(up_);
+			UpdateView();
 			dirty_ = true;
 		}
 		void Yaw(const float angle)
@@ -63,6 +70,7 @@ namespace gfx
 			const Matrix rotation = Matrix::CreateRotationY(angle);
 			right_ = rotation.TransformVector(right_);
 			forward_ = rotation.TransformVector(forward_);
+			UpdateView();
 			dirty_ = true;
 		}
 
@@ -76,15 +84,9 @@ namespace gfx
 		const Vector4& GetForward() const { return forward_; }
 		float GetFovAngle() const { return fov_angle_; }
 
-		const Matrix& GetView()
-		{
-			forward_.Normalize();
-			right_ = Vector4::Cross(Vector4{0, 1, 0, 0}, forward_).Normalized();
-			up_ = Vector4::Cross(forward_, right_).Normalized();
-			view_ = Matrix::CreateLookAtLH(position_, forward_, up_, right_);
+		const Matrix& GetView() const { return view_; }
 
-			return view_;
-		}
+		// question am i supposed to have done that ?
 		const Matrix& GetProjection(const float fov_y, const float aspect_ratio)
 		{
 			//TODO: create projection matrix
@@ -92,6 +94,17 @@ namespace gfx
 			(void)near_plane_; (void)far_plane_;
 			return projection_;
 		}
+	private:
+
+		// Re-orthogonalize ONB and calculate view_
+		void UpdateView()
+		{
+			forward_.Normalize();
+			right_ = Vector4::Cross(Vector4{ 0, 1, 0, 0 }, forward_).Normalized();
+			up_ = Vector4::Cross(forward_, right_).Normalized();
+			view_ = Matrix::CreateLookAtLH(position_, forward_, up_, right_);
+		}
 	};
+
 }
 #endif //CAMERA_HEADER
