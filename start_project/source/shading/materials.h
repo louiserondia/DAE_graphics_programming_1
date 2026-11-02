@@ -295,7 +295,8 @@ namespace gfx
 				.albedo = params_.albedo_color_factor,
 				.attenuation_color = params_.attenuation_color,
 				.shading_normal = input.world_normal, // later maybe normal map from texture
-				.roughness = std::clamp(params_.roughness_factor, 0.045f, params_.roughness_factor),
+				//.roughness = std::clamp(params_.roughness_factor, 0.045f, params_.roughness_factor),
+				.roughness = params_.roughness_factor,
 				.metallic = params_.metallic_factor,
 				.reflectance = params_.reflectance_factor,
 				.transmission = params_.transmission_factor,
@@ -327,6 +328,7 @@ namespace gfx
 			// could compute Fresnel only once
 
 			return Lambert(kd, sp.albedo) + specular;
+			//return specular;
 		}
 	};
 }

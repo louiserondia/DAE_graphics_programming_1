@@ -35,7 +35,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	bool has_transform{};
 	const Vector3 position_obj_space{ hit.ray.origin + hit.t * hit.ray.direction };
 	si.world_position = position_obj_space;
-	si.view_direction = hit.ray.direction.Normalized();
+	si.view_direction = -hit.ray.direction.Normalized(); // from point to camera
 
 	if (scene_object.instance_transformation.has_value()) {
 		si.world_position = scene_object.instance_transformation.value().TransformPoint(si.world_position);
@@ -92,7 +92,10 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 
 		if (has_transform)
 		{
-			p_prime = scene_object.instance_transformation.value().TransformNormal(p_prime);
+			p_prime = scene_object.instance_transformation.value().TransformPoint(p_prime);
+
+			// not correct but seemed to fix the little triangle on the belly of the bunny
+			//p_prime = scene_object.instance_transformation.value().TransformNormal(p_prime);
 		}
 
 		si.shadow_origin = p_prime;
@@ -311,7 +314,7 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 			const Ray shadow_ray{
 				.origin = si.shadow_origin,
 				.direction = light_dir,
-				.min = 0.001f,
+				.min = 0.00001f,
 				.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
 			};
 			RayHitRecord shadow_hit{};

@@ -59,7 +59,8 @@ namespace gfx
 	{
 		float alpha_square{ float(pow(roughness, 4)) };
 
-		return alpha_square / float(std::numbers::pi * pow(pow(Vector3::Dot(n, h), 2) * (alpha_square - 1) + 1, 2));
+		return alpha_square / 
+			float(std::numbers::pi * pow(pow(Vector3::Dot(n, h), 2) * (alpha_square - 1) + 1, 2));
 	}
 
 	/**
@@ -75,10 +76,10 @@ namespace gfx
 	{
 		float dot_n_v{ Vector3::Dot(n, v) };
 		float k{ is_indirect ?
-			float(pow(roughness, 2) / 2) :
+			(roughness * roughness) / 2 :
 			float(pow(roughness + 1, 2) / 8)
 		};
-		return dot_n_v / dot_n_v * (1 - k) + k;
+		return dot_n_v / (dot_n_v * (1 - k) + k);
 	}
 
 	/**
@@ -113,7 +114,12 @@ namespace gfx
 
 		float denominator{ (4 * std::max(Vector3::Dot(v, n), 0.f) * std::max(Vector3::Dot(l, n), 0.f)) };
 
-		return  (D * F * G) / std::max(denominator, 0.0001f);
+		ColorRgba res{ (D * F * G) / std::max(denominator, 0.0001f) };
+		if (res.r >= 0.9f && res.g >= 0.9f && res.b >= 0.9f) {
+			//res = ColorRgba::Black();
+
+		}
+		return res;
 	}
 }
 #endif
