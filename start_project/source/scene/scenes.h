@@ -247,13 +247,9 @@ namespace gfx
 				constexpr float center_y{ 7.f };
 				constexpr float center_z{ 5.f };
 				light->origin = {
-					float(std::cos(3 * std::numbers::pi / 2)) * radius,
+					std::cos(light_time) * radius,
 					center_y,
-					center_z + float(std::sin(3 * std::numbers::pi / 2)) * radius };
-				//light->origin = {
-				//	std::cos(light_time) * radius,
-				//	center_y,
-				//	center_z + std::sin(light_time) * radius };
+					center_z + std::sin(light_time) * radius };
 			}
 			return true;
 		}

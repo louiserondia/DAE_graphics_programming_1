@@ -145,6 +145,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		{
 			closest_hit = temp_hit;
 			closest_hit.object_index = uint32_t(i);
+			final_ray.max = closest_hit.t;
 		}
 	}
 
@@ -210,9 +211,6 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 		const Vector3 n0{ mesh->vertices[vertices_index[0]].normal.value() };
 		const Vector3 n1{ mesh->vertices[vertices_index[1]].normal.value() };
 		const Vector3 n2{ mesh->vertices[vertices_index[2]].normal.value() };
-		const Vector2 tc0{ mesh->vertices[vertices_index[0]].texture_coordinates.value() };
-		const Vector2 tc1{ mesh->vertices[vertices_index[1]].texture_coordinates.value() };
-		const Vector2 tc2{ mesh->vertices[vertices_index[2]].texture_coordinates.value() };
 
 		const float u{ hit.barycentric_coordinates.value().x };
 		const float v{ hit.barycentric_coordinates.value().y };
@@ -224,10 +222,17 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 
 		si.shadow_origin = Vector3{ objectspace_position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
 		objectspace_normal = Vector3{ n0 * w + n1 * u + n2 * v };
-		si.texture_coordinates = Vector2{
-			tc0.x * w + tc1.x * u + tc2.x * v,
-			tc0.y * w + tc1.y * u + tc2.y * v
-		};
+
+		if (mesh->vertices[vertices_index[0]].texture_coordinates.has_value())
+		{
+			const Vector2 tc0{ mesh->vertices[vertices_index[0]].texture_coordinates.value() };
+			const Vector2 tc1{ mesh->vertices[vertices_index[1]].texture_coordinates.value() };
+			const Vector2 tc2{ mesh->vertices[vertices_index[2]].texture_coordinates.value() };
+			si.texture_coordinates = Vector2{
+				tc0.x * w + tc1.x * u + tc2.x * v,
+				tc0.y * w + tc1.y * u + tc2.y * v
+			};
+		}
 		break;
 	}
 	default:
@@ -352,40 +357,35 @@ std::pair<bool, std::optional<RayHitRecord>> SoftwarePathTracer::BVHTraversal(si
 		return std::make_pair(false, std::nullopt);
 
 	if (node.IsLeaf()) {
-		bool did_hit{};
 		RayHitRecord temp_hit{};
-		for (size_t i{ node.first_tri }; i < node.first_tri + node.tri_count; i++)
+		const size_t end{ node.first_tri + node.tri_count };
+		for (size_t i{ node.first_tri }; i < end; i++)
 		{
-			Triangle triangle{};
-			did_hit = false;
-
-			auto mesh_index{ mesh->bvh_tri_indices[i] * 3 };
+			uint32_t mesh_index{ mesh->bvh_tri_indices[i] * 3 };
 			uint32_t index0{ mesh->indices[mesh_index] };
 			uint32_t index1{ mesh->indices[mesh_index + 1] };
 			uint32_t index2{ mesh->indices[mesh_index + 2] };
 
-			triangle.v0 = mesh->vertices[index0].position;
-			triangle.v1 = mesh->vertices[index1].position;
-			triangle.v2 = mesh->vertices[index2].position;
+			Triangle triangle = Triangle(
+				mesh->vertices[index0].position,
+				mesh->vertices[index1].position,
+				mesh->vertices[index2].position
+			);
 
-			triangle.normal = Vector3::Cross(triangle.v1 - triangle.v0, triangle.v2 - triangle.v0).Normalized();
+			if (!HitTestTriangle(triangle, ray, temp_hit, ignore_record)) continue;
 
-			did_hit = HitTestTriangle(triangle, ray, temp_hit, ignore_record);
+			if (ignore_record) return std::make_pair(true, std::nullopt);
 
-			if (did_hit && ignore_record)
-			{
-				return std::make_pair(true, std::nullopt);
-			}
-			if (did_hit && temp_hit.t < closest_hit.t)
+			if (temp_hit.t < closest_hit.t)
 			{
 				closest_hit = temp_hit;
 				closest_hit.vertex_indices = { index0, index1, index2 };
 			}
 		}
 
-		if (closest_hit.t < ray.max) {
+		if (closest_hit.t < ray.max)
 			return std::make_pair(true, closest_hit);
-		}
+
 		return std::make_pair(false, std::nullopt);
 	}
 

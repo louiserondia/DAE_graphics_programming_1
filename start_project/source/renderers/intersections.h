@@ -90,11 +90,11 @@ namespace gfx
 	[[maybe_unused]]
 	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray, RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		//const float dot{ Vector3::Dot(triangle.normal, ray.direction) };
+		const float dot{ Vector3::Dot(triangle.normal, ray.direction) };
 
 		// cull
-		//if (triangle.cull_mode == CullMode::kBackFaceCulling && dot >= 0.f) return false; // back-face or side
-		//if (triangle.cull_mode == CullMode::kFrontFaceCulling && dot <= 0.f) return false; // front-face or side
+		if (triangle.cull_mode == CullMode::kBackFaceCulling && dot >= 0.f) return false; // back-face or side
+		if (triangle.cull_mode == CullMode::kFrontFaceCulling && dot <= 0.f) return false; // front-face or side
 
 
 		const Vector3 edge1{ triangle.v1 - triangle.v0 };
