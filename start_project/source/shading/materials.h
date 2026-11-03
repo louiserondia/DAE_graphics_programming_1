@@ -100,16 +100,20 @@ namespace gfx
 	Vector3 SampleNormal(const ParamType& params, const ShadingInput& input,
 		const Factory<Texture>& textures)
 	{
-		//TODO
 		if constexpr (has_normal_texture<ParamType>::value)
 		{
 			if (params.normal_texture.has_value() && input.texture_coordinates.has_value()
 				&& input.world_tangent.has_value() && input.world_bitangent.has_value())
 			{
-				//TODO
-				assert(false && "Not Implemented");
-				(void)textures;
-				return {};
+				Texture* normal_tex{ textures.Get(params.normal_texture.value()) };
+				Vector3 tangent_normal{ normal_tex->SampleNormal(input.texture_coordinates.value()) };
+				const Matrix tbn = Matrix(
+					input.world_tangent.value(), 
+					input.world_bitangent.value(), 
+					input.world_normal, 
+					Vector3{});
+
+				return tbn.TransformVector(tangent_normal).Normalized();
 			}
 		}
 		return input.world_normal; // Default fallback.
@@ -260,7 +264,7 @@ namespace gfx
 
 				.albedo = params_.albedo_color_factor,
 				.attenuation_color = params_.attenuation_color,
-				.shading_normal = input.world_normal,
+				.shading_normal = SampleNormal(params_, input, textures),
 				.roughness = params_.roughness_factor,
 				.metallic = params_.metallic_factor,
 				.reflectance = params_.reflectance_factor,
@@ -271,6 +275,7 @@ namespace gfx
 				.alpha_params = params_.alpha_params
 			};
 
+			//if constexpr (has_normal_texture<ParamType>::value) // change for albedo?!
 			if (params_.albedo_color_texture.has_value())
 			{
 				Texture* albedo_tex{ textures.Get(params_.albedo_color_texture.value()) };
@@ -284,7 +289,7 @@ namespace gfx
 				sp.roughness = rm_tex->IsSrgb() ? sample.ToLinear().g : sample.g;
 				sp.metallic = rm_tex->IsSrgb() ? sample.ToLinear().b : sample.b;
 			}
-		
+
 			sp.f0 = ColorRgba::Lerp(f0_dielectric, sp.albedo, sp.metallic);
 
 			return sp;

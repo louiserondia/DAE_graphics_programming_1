@@ -240,6 +240,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 		si.shadow_origin = object.instance_transformation.value().TransformPoint(si.shadow_origin);
 		si.world_normal = object.instance_transformation.value().TransformNormal(si.world_normal);
 	}
+	si.world_tangent = Vector3::Cross(Vector3{ 0, 1, 0 }, si.world_normal).Normalized();
+	si.world_bitangent = Vector3::Cross(si.world_normal, si.world_tangent.value()).Normalized();
 
 	return si;
 }
@@ -253,6 +255,9 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
 	const SurfaceProperties surface_prop{ material->GetSurfaceProperties(si, scene->textures_factory) };
 	ColorRgba color{};
+
+	// either overwrites with normal texture or keeps the geometric normal
+	si.world_normal = surface_prop.shading_normal;
 
 	switch (vismod)
 	{
