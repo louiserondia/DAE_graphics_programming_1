@@ -60,7 +60,7 @@ namespace gfx
 		float alpha_square{ float(pow(roughness, 4)) };
 
 		return alpha_square / 
-			float(std::numbers::pi * pow(pow(Vector3::Dot(n, h), 2) * (alpha_square - 1) + 1, 2));
+			float(std::numbers::pi * pow(pow(std::max(Vector3::Dot(n, h), 0.f), 2) * (alpha_square - 1) + 1, 2));
 	}
 
 	/**
@@ -74,7 +74,7 @@ namespace gfx
 	static float GeometryFunction_SchlickGGX(const Vector3& n, const Vector3& v, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		float dot_n_v{ Vector3::Dot(n, v) };
+		float dot_n_v{ std::max(Vector3::Dot(n, v), 0.f) };
 		float k{ is_indirect ?
 			(roughness * roughness) / 2 :
 			float(pow(roughness + 1, 2) / 8)
@@ -115,9 +115,10 @@ namespace gfx
 		float denominator{ (4 * std::max(Vector3::Dot(v, n), 0.f) * std::max(Vector3::Dot(l, n), 0.f)) };
 
 		ColorRgba res{ (D * F * G) / std::max(denominator, 0.0001f) };
-		if (res.r >= 0.9f && res.g >= 0.9f && res.b >= 0.9f) {
+		if (res.r < 0.f) {
+		//if (res.r >= 0.3f) {
 			//res = ColorRgba::Black();
-
+			std::cout << res.r << std::endl;
 		}
 		return res;
 	}

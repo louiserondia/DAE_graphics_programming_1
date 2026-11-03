@@ -328,7 +328,6 @@ namespace gfx
 			// could compute Fresnel only once
 
 			return Lambert(kd, sp.albedo) + specular;
-			//return specular;
 		}
 	};
 }

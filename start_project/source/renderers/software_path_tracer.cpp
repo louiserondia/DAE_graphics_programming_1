@@ -44,6 +44,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	}
 
 	si.shadow_origin = si.world_position;
+	//si.shadow_origin = si.world_position + si.world_normal * 0.01f;
 	switch (primitive->type)
 	{
 	case PrimitiveType::kSphere:
@@ -105,6 +106,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	default:
 		break;
 	}
+
+	si.world_normal.Normalize();
 	if (has_transform) 
 	{
 		si.world_normal = scene_object.instance_transformation.value().TransformNormal(si.world_normal);
@@ -314,7 +317,7 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vm, c
 			const Ray shadow_ray{
 				.origin = si.shadow_origin,
 				.direction = light_dir,
-				.min = 0.00001f,
+				.min = 0.001f,
 				.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
 			};
 			RayHitRecord shadow_hit{};
