@@ -93,7 +93,8 @@ namespace gfx
 
 	template<typename T>
 	struct has_normal_texture<T, std::void_t<decltype(std::declval<T>().normal_texture)>> :
-		std::true_type {};
+		std::true_type {
+	};
 
 	template<typename ParamType>
 	Vector3 SampleNormal(const ParamType& params, const ShadingInput& input,
@@ -220,38 +221,6 @@ namespace gfx
 		//--- Overrides ---
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input, const Factory<Texture>& textures) const override
 		{
-			//TODO
-
-			// rho = albedo = kd (diffuse coef = how the matte material reflects between 0 and 1) * cd (difuse color)
-			// divide by PI to get Lambert BRDF = diffuse reflectance (how much incoming light it reflects diffusely), here same in every direction
-
-			// half vector
-			// (view dir + light direction (from point to source)) / |view dir + light dir|
-
-			// PBR Cook Torrance BRDF
-			// (D * F * G) / (4 * Dot(view, normal) * Dot(light, normal)) 
-
-			// 𝐷, Normal Distribution Function -> How many microfacets point in right direction ?
-			// 𝐹, Fresnel Function -> How reflective are the microfacets ?
-			// 𝐺, Geometry Function -> How much shadowing and m
-
-			// for D (Normal Distribution) : Trowbridge-Reitz GGX
-			// roughness^4 / ( pi * ( Dot(normal, halfvector)² * (roughness^4 - 1) + 1)^2 )
-
-			// Fresnel : Schlick's approx
-			// F0 + (𝟏 − F0) * (𝟏 − Dot(halfvector, view dir) )^5
-			// F0 = (metalness == 0) ? (0.04, 0.04, 0.04) : albedo
-
-			// Geometry funtion : Schlick GGX
-			// Dot(normal, view) / Dot(normal, view) * (1 - k) + k
-			// k = rougness remapped, depends on direct ot indirect light but we use direct here
-			// k_direct = (roughness + 1)^2 / 8
-			// k_indirect = roughness^2 / 2
-
-			// smith
-			// Cook_Torrence(normal, view, k) * Cook_Torrence(normal, light, k)
-			// view to calculate shadowing and light to calculate masking
-
 			(void)input;
 			(void)textures;
 
@@ -286,16 +255,12 @@ namespace gfx
 		{
 			const float r{ (params_.ior - 1.f) / (params_.ior + 1.f) };
 			const float f0_dielectric{ r * r };
-			//.f0 = (params_.metallic_factor < 0.01f) ? ColorRgba{ 0.04f, 0.04f, 0.04f } : params_.albedo_color_factor,
-
-		// clamp roughness to 0.045 or higher
 
 			SurfaceProperties sp{
 
 				.albedo = params_.albedo_color_factor,
 				.attenuation_color = params_.attenuation_color,
-				.shading_normal = input.world_normal, // later maybe normal map from texture
-				//.roughness = std::clamp(params_.roughness_factor, 0.045f, params_.roughness_factor),
+				.shading_normal = input.world_normal,
 				.roughness = params_.roughness_factor,
 				.metallic = params_.metallic_factor,
 				.reflectance = params_.reflectance_factor,
@@ -306,9 +271,22 @@ namespace gfx
 				.alpha_params = params_.alpha_params
 			};
 
+			if (params_.albedo_color_texture.has_value())
+			{
+				Texture* albedo_tex{ textures.Get(params_.albedo_color_texture.value()) };
+				const ColorRgba sample{ albedo_tex->Sample(input.texture_coordinates.value()) };
+				sp.albedo = albedo_tex->IsSrgb() ? sample.ToLinear() : sample;
+			}
+			if (params_.metallic_roughness_texture.has_value())
+			{
+				Texture* rm_tex{ textures.Get(params_.metallic_roughness_texture.value()) };
+				const ColorRgba sample{ rm_tex->Sample(input.texture_coordinates.value()) };
+				sp.roughness = rm_tex->IsSrgb() ? sample.ToLinear().g : sample.g;
+				sp.metallic = rm_tex->IsSrgb() ? sample.ToLinear().b : sample.b;
+			}
+		
 			sp.f0 = ColorRgba::Lerp(f0_dielectric, sp.albedo, sp.metallic);
 
-			(void)input; (void)textures;
 			return sp;
 		}
 
@@ -332,4 +310,33 @@ namespace gfx
 	};
 }
 #endif //MATERIALS_HEADER
-//(void)input; (void)sp;
+
+// rho = albedo = kd (diffuse coef = how the matte material reflects between 0 and 1) * cd (difuse color)
+// divide by PI to get Lambert BRDF = diffuse reflectance (how much incoming light it reflects diffusely), here same in every direction
+
+// half vector
+// (view dir + light direction (from point to source)) / |view dir + light dir|
+
+// PBR Cook Torrance BRDF
+// (D * F * G) / (4 * Dot(view, normal) * Dot(light, normal)) 
+
+// 𝐷, Normal Distribution Function -> How many microfacets point in right direction ?
+// 𝐹, Fresnel Function -> How reflective are the microfacets ?
+// 𝐺, Geometry Function -> How much shadowing and m
+
+// for D (Normal Distribution) : Trowbridge-Reitz GGX
+// roughness^4 / ( pi * ( Dot(normal, halfvector)² * (roughness^4 - 1) + 1)^2 )
+
+// Fresnel : Schlick's approx
+// F0 + (𝟏 − F0) * (𝟏 − Dot(halfvector, view dir) )^5
+// F0 = (metalness == 0) ? (0.04, 0.04, 0.04) : albedo
+
+// Geometry funtion : Schlick GGX
+// Dot(normal, view) / Dot(normal, view) * (1 - k) + k
+// k = rougness remapped, depends on direct ot indirect light but we use direct here
+// k_direct = (roughness + 1)^2 / 8
+// k_indirect = roughness^2 / 2
+
+// smith
+// Cook_Torrence(normal, view, k) * Cook_Torrence(normal, light, k)
+// view to calculate shadowing and light to calculate masking

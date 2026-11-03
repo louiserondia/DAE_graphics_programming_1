@@ -10,9 +10,16 @@
 
 //--- Framework Includes ---
 #include <renderer.h>
+#include <vector3.h>
 
 namespace gfx
 {
+	struct SurfaceSampleObjSpace
+	{
+		Vector3 normal{};
+		Vector3 shadow_origin{};
+	};
+
 	//--- Software Path Tracer ---
 	class SoftwarePathTracer final : public Renderer
 	{
@@ -41,6 +48,12 @@ namespace gfx
 		ColorRgba CalculateRadiance(const Light* light, const Vector3& world_position);
 		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si);
 		Vector4 GetRayDirection(int px, int py, float w, float h);
+
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Sphere& sphere, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Plane& plane, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Triangle& triangle, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( TriangleMesh& mesh, const RayHitRecord& hit);
+
 
 	};
 }
