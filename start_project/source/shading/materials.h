@@ -105,11 +105,11 @@ namespace gfx
 			if (params.normal_texture.has_value() && input.texture_coordinates.has_value()
 				&& input.world_tangent.has_value() && input.world_bitangent.has_value())
 			{
-				Texture* normal_tex{ textures.Get(params.normal_texture.value()) };
-				Vector3 tangent_normal{ normal_tex->SampleNormal(input.texture_coordinates.value()) };
+				Texture* normal_tex{ textures.Get(*params.normal_texture) };
+				Vector3 tangent_normal{ normal_tex->SampleNormal(*input.texture_coordinates) };
 				const Matrix tbn = Matrix(
-					input.world_tangent.value(), 
-					input.world_bitangent.value(), 
+					*input.world_tangent, 
+					*input.world_bitangent, 
 					input.world_normal, 
 					Vector3{});
 

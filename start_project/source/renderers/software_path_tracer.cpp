@@ -91,7 +91,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		PrimitiveType primitive_type = factory.Get(object.primitive_index)->type;
 
 		if (object.instance_transformation.has_value())
-			final_ray = object.instance_transformation.value().TransformRay(ray);
+			final_ray = object.instance_transformation->TransformRay(ray);
 
 		switch (primitive_type)
 		{
@@ -122,16 +122,11 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 			if (!mesh->bvh_nodes.size()) break;
 
-			auto pair_mesh_hit{ BVHTraversal(0, final_ray, mesh, object.instance_transformation, ignore_record) };
+			did_hit = BVHTraversal(0, final_ray, mesh, object.instance_transformation, ignore_record, temp_hit);
 
 			// for shadow ray, we just want to know if sth hit, so return instantly
-			if (pair_mesh_hit.first && ignore_record) return true;
+			if (did_hit && ignore_record) return true;
 
-			if (pair_mesh_hit.first)
-			{
-				did_hit = true;
-				temp_hit = pair_mesh_hit.second.value();
-			}
 			break;
 		}
 		case PrimitiveType::kNone:
@@ -168,8 +163,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 
 	if (object.instance_transformation.has_value())
 	{
-		si.world_position = object.instance_transformation.value().TransformPoint(si.world_position);
-		si.view_direction = object.instance_transformation.value().TransformVector(si.view_direction).Normalized();
+		si.world_position = object.instance_transformation->TransformPoint(si.world_position);
+		si.view_direction = object.instance_transformation->TransformVector(si.view_direction).Normalized();
 		has_transform = true;
 	}
 
@@ -203,35 +198,33 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	case PrimitiveType::kTriangleMesh:
 	{
 		TriangleMesh* mesh{ factory.GetAs<TriangleMesh>(object.primitive_index) };
+		//const std::array<float, 3> weights{ w, u, v };
 
-		const auto& vertices_index{ hit.vertex_indices.value() };
+		const auto& vertices_index{ *hit.vertex_indices };
 		const Vector3 p0{ mesh->vertices[vertices_index[0]].position };
 		const Vector3 p1{ mesh->vertices[vertices_index[1]].position };
 		const Vector3 p2{ mesh->vertices[vertices_index[2]].position };
-		const Vector3 n0{ mesh->vertices[vertices_index[0]].normal.value() };
-		const Vector3 n1{ mesh->vertices[vertices_index[1]].normal.value() };
-		const Vector3 n2{ mesh->vertices[vertices_index[2]].normal.value() };
+		const Vector3 n0{ *mesh->vertices[vertices_index[0]].normal };
+		const Vector3 n1{ *mesh->vertices[vertices_index[1]].normal };
+		const Vector3 n2{ *mesh->vertices[vertices_index[2]].normal };
 
-		const float u{ hit.barycentric_coordinates.value().x };
-		const float v{ hit.barycentric_coordinates.value().y };
+		const float u{ hit.barycentric_coordinates->x };
+		const float v{ hit.barycentric_coordinates->y };
 		const float w{ 1.f - u - v };
 
 		float dotw = std::min(0.f, Vector3::Dot(objectspace_position - p0, n0));
 		float dotu = std::min(0.f, Vector3::Dot(objectspace_position - p1, n1));
 		float dotv = std::min(0.f, Vector3::Dot(objectspace_position - p2, n2));
 
-		si.shadow_origin = Vector3{ objectspace_position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
-		objectspace_normal = Vector3{ n0 * w + n1 * u + n2 * v };
+		si.shadow_origin = objectspace_position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2);
+		objectspace_normal = n0 * w + n1 * u + n2 * v;
 
 		if (mesh->vertices[vertices_index[0]].texture_coordinates.has_value())
 		{
-			const Vector2 tc0{ mesh->vertices[vertices_index[0]].texture_coordinates.value() };
-			const Vector2 tc1{ mesh->vertices[vertices_index[1]].texture_coordinates.value() };
-			const Vector2 tc2{ mesh->vertices[vertices_index[2]].texture_coordinates.value() };
-			si.texture_coordinates = Vector2{
-				tc0.x * w + tc1.x * u + tc2.x * v,
-				tc0.y * w + tc1.y * u + tc2.y * v
-			};
+			const Vector2 tc0{ *mesh->vertices[vertices_index[0]].texture_coordinates };
+			const Vector2 tc1{ *mesh->vertices[vertices_index[1]].texture_coordinates };
+			const Vector2 tc2{ *mesh->vertices[vertices_index[2]].texture_coordinates };
+			si.texture_coordinates = tc0 * w + tc1 * u + tc2 * v;
 		}
 		break;
 	}
@@ -242,11 +235,11 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 	si.world_normal = objectspace_normal.Normalized();
 	if (has_transform)
 	{
-		si.shadow_origin = object.instance_transformation.value().TransformPoint(si.shadow_origin);
-		si.world_normal = object.instance_transformation.value().TransformNormal(si.world_normal);
+		si.shadow_origin = object.instance_transformation->TransformPoint(si.shadow_origin);
+		si.world_normal = object.instance_transformation->TransformNormal(si.world_normal);
 	}
 	si.world_tangent = Vector3::Cross(Vector3{ 0, 1, 0 }, si.world_normal).Normalized();
-	si.world_bitangent = Vector3::Cross(si.world_normal, si.world_tangent.value()).Normalized();
+	si.world_bitangent = Vector3::Cross(si.world_normal, *si.world_tangent).Normalized();
 
 	return si;
 }
@@ -341,23 +334,23 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	return color;
 }
 
-std::pair<bool, std::optional<RayHitRecord>> SoftwarePathTracer::BVHTraversal(size_t node_index,
-	const Ray& ray,
-	TriangleMesh* mesh,
+bool SoftwarePathTracer::BVHTraversal(
+	size_t node_index,
+	Ray& ray,
+	const TriangleMesh* mesh,
 	const std::optional<Matrix>& transform,
-	bool ignore_record)
+	bool ignore_record,
+	RayHitRecord& best_hit)
 {
-	BVHNode& node{ mesh->bvh_nodes[node_index] };
-	RayHitRecord closest_hit{};
-	AABB aabb{ node.bounds };
+	const BVHNode& node{ mesh->bvh_nodes[node_index] };
+	const AABB& aabb{ node.bounds };
 
-	bool did_hit_AABB{ HitTestAABB(aabb, ray) };
+	if (!HitTestAABB(aabb, ray))
+		return false;
 
-	if (!did_hit_AABB)
-		return std::make_pair(false, std::nullopt);
-
+	bool did_hit{};
 	if (node.IsLeaf()) {
-		RayHitRecord temp_hit{};
+		RayHitRecord closest_hit{};
 		const size_t end{ node.first_tri + node.tri_count };
 		for (size_t i{ node.first_tri }; i < end; i++)
 		{
@@ -366,45 +359,34 @@ std::pair<bool, std::optional<RayHitRecord>> SoftwarePathTracer::BVHTraversal(si
 			uint32_t index1{ mesh->indices[mesh_index + 1] };
 			uint32_t index2{ mesh->indices[mesh_index + 2] };
 
-			Triangle triangle = Triangle(
+			Triangle triangle{
 				mesh->vertices[index0].position,
 				mesh->vertices[index1].position,
 				mesh->vertices[index2].position
-			);
+			};
 
-			if (!HitTestTriangle(triangle, ray, temp_hit, ignore_record)) continue;
+			if (!HitTestTriangle(triangle, ray, closest_hit, ignore_record)) continue;
 
-			if (ignore_record) return std::make_pair(true, std::nullopt);
+			if (ignore_record) return true;
 
-			if (temp_hit.t < closest_hit.t)
+			if (closest_hit.t < best_hit.t)
 			{
-				closest_hit = temp_hit;
+				did_hit = true;
 				closest_hit.vertex_indices = { index0, index1, index2 };
+				best_hit = closest_hit;
+				ray.max = closest_hit.t;
 			}
 		}
-
-		if (closest_hit.t < ray.max)
-			return std::make_pair(true, closest_hit);
-
-		return std::make_pair(false, std::nullopt);
+		return did_hit;
 	}
 
 	auto left_child_index{ node.left_child };
 
-	auto left{ BVHTraversal(left_child_index, ray, mesh, transform, ignore_record) };
-	auto right{ BVHTraversal(left_child_index + 1, ray, mesh, transform, ignore_record) };
+	// visit front child then back
+	bool left{ BVHTraversal(left_child_index, ray, mesh, transform, ignore_record, best_hit) };
+	bool right{ BVHTraversal(left_child_index + 1, ray, mesh, transform, ignore_record, best_hit) };
 
-	if ((left.first || right.first) && ignore_record)
-		return std::make_pair(true, std::nullopt);
-
-	if (left.first && right.first)
-		return left.second.value().t < right.second.value().t ? left : right;
-	else if (left.first)
-		return left;
-	else if (right.first)
-		return right;
-	else
-		return std::make_pair(false, std::nullopt);
+	return left || right;
 }
 
 ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position)
@@ -462,16 +444,16 @@ SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(TriangleM
 {
 	const Vector3 position{ hit.ray.origin + hit.t * hit.ray.direction };
 
-	const auto& vertices_index{ hit.vertex_indices.value() };
+	const auto& vertices_index{ *hit.vertex_indices };
 	const Vector3 p0{ mesh.vertices[vertices_index[0]].position };
 	const Vector3 p1{ mesh.vertices[vertices_index[1]].position };
 	const Vector3 p2{ mesh.vertices[vertices_index[2]].position };
-	const Vector3 n0{ mesh.vertices[vertices_index[0]].normal.value() };
-	const Vector3 n1{ mesh.vertices[vertices_index[1]].normal.value() };
-	const Vector3 n2{ mesh.vertices[vertices_index[2]].normal.value() };
+	const Vector3 n0{ *mesh.vertices[vertices_index[0]].normal };
+	const Vector3 n1{ *mesh.vertices[vertices_index[1]].normal };
+	const Vector3 n2{ *mesh.vertices[vertices_index[2]].normal };
 
-	const float u{ hit.barycentric_coordinates.value().x };
-	const float v{ hit.barycentric_coordinates.value().y };
+	const float u{ hit.barycentric_coordinates->x };
+	const float v{ hit.barycentric_coordinates->y };
 	const float w{ 1.f - u - v };
 
 	float dotw = std::min(0.f, Vector3::Dot(position - p0, n0));

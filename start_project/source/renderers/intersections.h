@@ -77,8 +77,8 @@ namespace gfx
 				const Vector3 b{ Vector3::Cross(plane.normal, plane.tangent) };
 				const float t_prime{ Vector3::Dot(p, plane.tangent) };
 				const float b_prime{ Vector3::Dot(p, b) };
-				if (std::abs(t_prime) <= plane.half_extent.value().x
-					&& std::abs(b_prime) <= plane.half_extent.value().y)
+				if (std::abs(t_prime) <= plane.half_extent->x
+					&& std::abs(b_prime) <= plane.half_extent->y)
 					return true;
 				return false;
 			}
@@ -90,12 +90,6 @@ namespace gfx
 	[[maybe_unused]]
 	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray, RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		const float dot{ Vector3::Dot(triangle.normal, ray.direction) };
-
-		// cull
-		if (triangle.cull_mode == CullMode::kBackFaceCulling && dot >= 0.f) return false; // back-face or side
-		if (triangle.cull_mode == CullMode::kFrontFaceCulling && dot <= 0.f) return false; // front-face or side
-
 
 		const Vector3 edge1{ triangle.v1 - triangle.v0 };
 		const Vector3 edge2{ triangle.v2 - triangle.v0 };
@@ -104,6 +98,10 @@ namespace gfx
 
 		const float det{ Vector3::Dot(edge1, h) };
 		const float inv_det{ 1 / det };
+
+		// cull
+		if (triangle.cull_mode == CullMode::kBackFaceCulling && det < std::numeric_limits<float>::min()) return false; // back-face or side
+		if (triangle.cull_mode == CullMode::kFrontFaceCulling && det > std::numeric_limits<float>::min()) return false; // front-face or side
 
 		//test u
 		const Vector3 dist{ ray.origin - triangle.v0 };
