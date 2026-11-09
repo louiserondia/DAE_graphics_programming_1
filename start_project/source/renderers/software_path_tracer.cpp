@@ -60,8 +60,9 @@ void SoftwarePathTracer::Render()
 				shading_input = ConstructShadingInput(closest_hit_record);
 				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
 			}
-
-			if (yo) final_color = { 1, 0, 0 };
+			
+			float u{ HashToFloat(LowBias(py * width + px)) };
+			final_color = { u, u, u };
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
@@ -73,7 +74,7 @@ void SoftwarePathTracer::Render()
 	}
 }
 
-bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record)
+bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const Factory<Primitive>& factory{ scene->primitives_factory };
@@ -83,8 +84,6 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 	for (size_t i{}; i < scene->objects.size(); i++)
 	{
-		yo = false;
-
 		bool did_hit{};
 		RayHitRecord temp_hit{};
 		SceneObject& object{ scene->objects[i] };
@@ -148,7 +147,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 	return false;
 }
 
-ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
+ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) const
 {
 	ShadingInput si{};
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
@@ -246,6 +245,43 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit)
 
 // question: couldnt we optimise by not even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
 
+ColorRgba SoftwarePathTracer::DirectIllumination(
+	const ShadingInput& shading_input,
+	const SurfaceProperties& sp,
+	const Material* material,
+	const Scene* scene) const
+{
+	ColorRgba result{};
+	ShadingInput si{ shading_input };
+
+	for (const Light* light : scene->lights_factory.GetAll())
+	{
+		Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
+		const float light_distance{ light_dir.Normalize() };
+		si.light_direction = light_dir;
+
+		// lambert's cosine law : lights below horizon dont contribute
+		const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
+		if (cos_theta <= 0) continue;
+
+		const Ray shadow_ray{
+			.origin = si.shadow_origin,
+			.direction = light_dir,
+			.min = 0.001f,
+			.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
+		};
+		RayHitRecord shadow_hit{};
+
+		if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
+			continue;
+
+		const ColorRgba brdf{ material->Shade(si, sp) };
+		result += cos_theta * brdf * CalculateRadiance(light, si.world_position);
+	}
+	return result;
+}
+
+
 ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
@@ -261,36 +297,10 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 	case VisualizationMode::kNone:
 	{
-		for (const Light* light : scene->lights_factory.GetAll())
-		{
-			Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
-			const float light_distance{ light_dir.Normalize() };
-			si.light_direction = light_dir;
+		color = DirectIllumination(si, surface_prop, material, scene);
 
-			// lambert's cosine law : lights below horizon dont contribute
-			const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
-			if (cos_theta <= 0) continue;
-
-			const Ray shadow_ray{
-				.origin = si.shadow_origin,
-				.direction = light_dir,
-				.min = 0.001f,
-				.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
-			};
-			RayHitRecord shadow_hit{};
-
-			if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
-				continue;
-
-			const ColorRgba brdf{ material->Shade(si, surface_prop) };
-			color += cos_theta * brdf * CalculateRadiance(light, si.world_position);
-		}
-
-		color = color.Tonemap(context_->debug_params.tone_map_operator); //f6 to switch
-
-		// should be for all vismods? 
+		color = color.Tonemap(context_->debug_params.tone_map_operator);
 		color = color.ToSrgb();
-		color.Clamp();
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -319,18 +329,23 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	}
 	case VisualizationMode::kUV:
 	{
-		//color = ColorRgba{hit.uv.x, hit.uv.y, 0.0f};
+		// use checker board texture
+		// color = ColorRgba{hit.uv.x, hit.uv.y, 0.0f};
 		break;
 	}
 	case VisualizationMode::kBounceCount:
 	case VisualizationMode::kDirectOnly:
+	{
+		color = DirectIllumination(si, surface_prop, material, scene);
+		color = color.Tonemap(context_->debug_params.tone_map_operator);
+		color = color.ToSrgb();
+	}
 	case VisualizationMode::kMax:
 	default:
 		break;
 	}
 
-	if (yo) return ColorRgba{ 1, 0, 0 }; //debug
-
+	color.Clamp();
 	return color;
 }
 
@@ -340,7 +355,7 @@ bool SoftwarePathTracer::BVHTraversal(
 	const TriangleMesh* mesh,
 	const std::optional<Matrix>& transform,
 	bool ignore_record,
-	RayHitRecord& best_hit)
+	RayHitRecord& best_hit) const
 {
 	const BVHNode& node{ mesh->bvh_nodes[node_index] };
 	const AABB& aabb{ node.bounds };
@@ -389,7 +404,7 @@ bool SoftwarePathTracer::BVHTraversal(
 	return left || right;
 }
 
-ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position)
+ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position) const
 {
 	switch (light->type)
 	{
@@ -464,10 +479,3 @@ SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(TriangleM
 	Vector3 shadow_origin{ position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
 	return SurfaceSampleObjSpace{ normal, shadow_origin };
 }
-
-
-//auto ss = std::visit(
-//	[&](const auto& primitive) -> SurfaceSampleObjSpace { return ComputeNormalAndShadowOrigin(primitive, hit); },
-//	*factory.Get(object.primitive_index)
-//);
-

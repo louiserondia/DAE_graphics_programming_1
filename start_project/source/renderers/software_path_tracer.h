@@ -25,7 +25,6 @@ namespace gfx
 	{
 	public:
 		//--- Construction / Destruction ---
-		bool yo;
 
 		SoftwarePathTracer(Context* const context);
 		~SoftwarePathTracer() override;
@@ -43,19 +42,29 @@ namespace gfx
 			const TriangleMesh* mesh,
 			const std::optional<Matrix>& transform,
 			bool ignore_record,
-			RayHitRecord& hit);
-		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false); // remettre le const (retire pour yo)
-		ShadingInput ConstructShadingInput(const RayHitRecord& hit);
-		ColorRgba CalculateRadiance(const Light* light, const Vector3& world_position);
+			RayHitRecord& hit) const;
+		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
+		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
+		ColorRgba CalculateRadiance(const Light* light, const Vector3& world_position) const;
 		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si);
+		ColorRgba DirectIllumination(
+			const ShadingInput& shading_input,
+			const SurfaceProperties& sp,
+			const Material* material,
+			const Scene* scene) const;
+
 		Vector4 GetRayDirection(int px, int py, float w, float h);
 
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Sphere& sphere, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Plane& plane, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( Triangle& triangle, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin( TriangleMesh& mesh, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Sphere& sphere, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Plane& plane, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Triangle& triangle, const RayHitRecord& hit);
+		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(TriangleMesh& mesh, const RayHitRecord& hit);
 
 
 	};
+
+	//uint32_t LowBias(uint32_t h);
+	//float HashToFloat(const uint32_t h);
+
 }
 #endif //SOFTWARE_PATH_TRACER_HEADER
