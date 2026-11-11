@@ -495,7 +495,11 @@ float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_in
 		RayHitRecord hit{};
 		const uint32_t ao_seed{ pixel_index * 1973u + index * 6133u };
 
-		HemisphereSample sample{ UniformSampleHemisphere(si.world_normal, ao_seed) };
+		bool use_uniform{ context_->debug_params.sampling_strategy == SamplingStrategy::kUniform };
+
+		HemisphereSample sample{ use_uniform ?
+			UniformSampleHemisphere(si.world_normal, ao_seed) :
+			CosineSampleHemisphere(si.world_normal, ao_seed)};
 
 		Ray ao_ray{
 			.origin = si.shadow_origin,
@@ -533,4 +537,24 @@ HemisphereSample gfx::SoftwarePathTracer::UniformSampleHemisphere(const Vector3&
 	return HemisphereSample{
 		.direction = LocalToWorld(local_dir, normal),
 		.pdf = 1 / (2 * pi) };
+}
+
+// faire fonction pour f (weight)
+
+HemisphereSample gfx::SoftwarePathTracer::CosineSampleHemisphere(const Vector3& normal, uint32_t seed)
+{
+	uint32_t h{ LowBias(seed) };
+	const float u1{ HashToFloat(h) };
+	h = LowBias(h);
+	const float u2{ HashToFloat(h) };
+
+	const float sin_theta{ sqrt((1 - u2 * u2)) };
+	const float pi{ static_cast<float>(std::numbers::pi) };
+	const float phi{ 2 * pi * u1 };
+
+	Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
+
+	return HemisphereSample{
+		.direction = LocalToWorld(local_dir, normal),
+		.pdf = u2 / pi };
 }

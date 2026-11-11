@@ -72,6 +72,7 @@ namespace gfx
 
 		float TraceAO(const ShadingInput& si, uint32_t pixel_index) const;
 		static HemisphereSample UniformSampleHemisphere(const Vector3& normal, uint32_t seed);
+		static HemisphereSample CosineSampleHemisphere(const Vector3& normal, uint32_t seed);
 
 	};
 }
