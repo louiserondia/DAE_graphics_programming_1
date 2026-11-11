@@ -31,50 +31,71 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
+	context_->debug_params.max_samples = 256;
 
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SurfaceInfo& surface_info = context_->surface_info;
 	const int width{ int(surface_info.width) };
 	const int height{ int(surface_info.height) };
+	int total_pixels{ width * height };
 
 	const Matrix& viewMatrix{ scene->camera.GetView() };
 	const Matrix& inverseViewMatrix{ viewMatrix.GetInverse() };
-	VisualizationMode vismod{ context_->debug_params.visualization_mode };
-	(void)vismod;
+	VisualizationMode vis_mode{ context_->debug_params.visualization_mode };
+	SamplingStrategy sampling_strategy{ context_->debug_params.sampling_strategy };
 
-	Vector3 test{};
-	Vector3 n{ Vector3{ 3, 15, 10 }.Normalized() };
-	test = LocalToWorld(Vector3{ 0, 0, 1 }, n);
+	if (scene->scene_changed || accumulation_buffer_.size() != total_pixels ||
+		vis_mode != last_vis_mode_ || sampling_strategy != last_sampling_strategy_)
+	{
+		context_->debug_params.accumulated_samples = 0;
+		accumulation_buffer_.assign(total_pixels, ColorRgba{});
+		last_vis_mode_ = vis_mode;
+		last_sampling_strategy_ = sampling_strategy;
+	}
+	bool is_debug_view{ vis_mode != VisualizationMode::kNone && vis_mode != VisualizationMode::kDirectOnly };
 
+	if (!is_debug_view && context_->debug_params.accumulated_samples >= context_->debug_params.max_samples)
+		return;
 
 #pragma omp parallel for schedule(dynamic, 16)
-	for (int py{}; py < height; ++py)
+	for (int pixel_index{}; pixel_index < total_pixels; ++pixel_index)
 	{
-		for (int px{}; px < width; ++px)
+		int px{ GetCol(pixel_index, width) };
+		int py{ GetRow(pixel_index, width) };
+		Ray view_ray{ scene->camera.GetPosition() };
+		RayHitRecord closest_hit_record{};
+		ShadingInput shading_input{};
+		ColorRgba final_color{};
+
+		view_ray.direction = inverseViewMatrix * GetRayDirection(pixel_index, px, py, float(width), float(height));
+		view_ray.direction.Normalize();
+
+		bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record, false) };
+		if (did_hit)
 		{
-			Ray view_ray{ scene->camera.GetPosition() };
-			RayHitRecord closest_hit_record{};
-			ShadingInput shading_input{};
-			ColorRgba final_color{};
-
-			view_ray.direction = inverseViewMatrix * GetRayDirection(px, py, float(width), float(height));
-			view_ray.direction.Normalize();
-
-			bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record, false) };
-			if (did_hit)
-			{
-				shading_input = ConstructShadingInput(closest_hit_record);
-				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input, GetIndex(py, px, width));
-			}
-
-			// Write to surface
-			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
-				surface_info.pixel_format_details, nullptr,
-				uint8_t(final_color.r * 255),
-				uint8_t(final_color.g * 255),
-				uint8_t(final_color.b * 255));
+			shading_input = ConstructShadingInput(closest_hit_record);
+			final_color = ConstructFinalColor(vis_mode, closest_hit_record, shading_input, pixel_index);
 		}
+
+		if (!is_debug_view)
+		{
+			const float inv_frames{ 1.f / context_->debug_params.accumulated_samples };
+			accumulation_buffer_[pixel_index] += final_color;
+			final_color = accumulation_buffer_[pixel_index] * inv_frames;
+			final_color = final_color.Tonemap(context_->debug_params.tone_map_operator);
+			final_color = final_color.ToSrgb();
+		}
+
+		final_color.Clamp();
+		// Write to surface
+		surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
+			surface_info.pixel_format_details, nullptr,
+			uint8_t(final_color.r * 255),
+			uint8_t(final_color.g * 255),
+			uint8_t(final_color.b * 255));
 	}
+	if (!is_debug_view)
+		++context_->debug_params.accumulated_samples;
 }
 
 bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
@@ -302,11 +323,8 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 		//color = DirectIllumination(si, surface_prop, material, scene);
 
-		//color = color.Tonemap(context_->debug_params.tone_map_operator);
-		//color = color.ToSrgb();
 		const float ao{ TraceAO(si, pixel_index) };
 		color = Vector3{ ao, ao, ao };
-
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -343,15 +361,13 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	case VisualizationMode::kDirectOnly:
 	{
 		color = DirectIllumination(si, surface_prop, material, scene);
-		color = color.Tonemap(context_->debug_params.tone_map_operator);
-		color = color.ToSrgb();
+		break;
 	}
 	case VisualizationMode::kMax:
 	default:
 		break;
 	}
 
-	color.Clamp();
 	return color;
 }
 
@@ -427,14 +443,16 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	}
 }
 
-Vector4 SoftwarePathTracer::GetRayDirection(int px, int py, float w, float h)
+Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const float aspect_ratio{ w / h };
 	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
 
-	const float x{ (2.f * ((px + 0.5f) / w) - 1.f) * aspect_ratio * fov };
-	const float y{ (1.f - 2.f * ((py + 0.5f) / h)) * fov };
+	const Vector2 jitter{ GenerateSubpixelJitter(pixel_index) };
+
+	const float x{ (2.f * ((float(px) + jitter.x) / w) - 1.f) * aspect_ratio * fov };
+	const float y{ (1.f - 2.f * ((float(py) + jitter.y) / h)) * fov };
 
 	return Vector4{ x, y, 1.f, 0.f };
 }
@@ -493,13 +511,13 @@ float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_in
 	{
 		// multipliers need to be odd and coprime together
 		RayHitRecord hit{};
-		const uint32_t ao_seed{ pixel_index * 1973u + index * 6133u };
+		const uint32_t ao_seed{ pixel_index * 1973u + index * 6133u + context_->debug_params.accumulated_samples * 2654435761u };
 
 		bool use_uniform{ context_->debug_params.sampling_strategy == SamplingStrategy::kUniform };
 
 		HemisphereSample sample{ use_uniform ?
 			UniformSampleHemisphere(si.world_normal, ao_seed) :
-			CosineSampleHemisphere(si.world_normal, ao_seed)};
+			CosineSampleHemisphere(si.world_normal, ao_seed) };
 
 		Ray ao_ray{
 			.origin = si.shadow_origin,
@@ -537,7 +555,7 @@ HemisphereSample gfx::SoftwarePathTracer::UniformSampleHemisphere(const Vector3&
 	return HemisphereSample{
 		.direction = LocalToWorld(local_dir, normal),
 		.pdf = 1 / (2 * pi) };
-}
+} // question says in the slide to not reduce ourselves, but in the slide ao formula looks more opti by simplifying p
 
 // faire fonction pour f (weight)
 
@@ -557,4 +575,15 @@ HemisphereSample gfx::SoftwarePathTracer::CosineSampleHemisphere(const Vector3& 
 	return HemisphereSample{
 		.direction = LocalToWorld(local_dir, normal),
 		.pdf = u2 / pi };
+}
+
+Vector2 gfx::SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index) const
+{
+	const uint32_t frame{ context_->debug_params.accumulated_samples };
+	const uint32_t frame_hash{ LowBias(frame) };
+	uint32_t h{ pixel_index ^ frame_hash };
+	float jx{ HashToFloat(h) };
+	h = LowBias(h);
+
+	return Vector2(jx, HashToFloat(h));
 }

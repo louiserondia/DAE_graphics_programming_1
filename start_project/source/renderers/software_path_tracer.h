@@ -28,6 +28,7 @@ namespace gfx
 	//--- Software Path Tracer ---
 	class SoftwarePathTracer final : public Renderer
 	{
+
 	public:
 		//--- Construction / Destruction ---
 
@@ -58,7 +59,7 @@ namespace gfx
 			const Material* material,
 			const Scene* scene) const;
 
-		Vector4 GetRayDirection(int px, int py, float w, float h);
+		Vector4 GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h);
 
 		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Sphere& sphere, const RayHitRecord& hit);
 		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Plane& plane, const RayHitRecord& hit);
@@ -67,12 +68,19 @@ namespace gfx
 
 		// AO
 
-		uint32_t ao_sample_count{ 32 };
+		uint32_t ao_sample_count{ 1 };
 		float ao_radius{ 10.f };
 
 		float TraceAO(const ShadingInput& si, uint32_t pixel_index) const;
 		static HemisphereSample UniformSampleHemisphere(const Vector3& normal, uint32_t seed);
 		static HemisphereSample CosineSampleHemisphere(const Vector3& normal, uint32_t seed);
+
+		Vector2 GenerateSubpixelJitter(uint32_t pixel_index) const;
+
+	private:
+		VisualizationMode last_vis_mode_{ VisualizationMode::kNone };
+		SamplingStrategy last_sampling_strategy_{ SamplingStrategy::kCosine };
+		std::vector<ColorRgba> accumulation_buffer_{};
 
 	};
 }
