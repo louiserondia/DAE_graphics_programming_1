@@ -40,6 +40,12 @@ void SoftwarePathTracer::Render()
 	const Matrix& viewMatrix{ scene->camera.GetView() };
 	const Matrix& inverseViewMatrix{ viewMatrix.GetInverse() };
 	VisualizationMode vismod{ context_->debug_params.visualization_mode };
+	(void)vismod;
+
+	Vector3 test{};
+	Vector3 n{ Vector3{ 3, 15, 10 }.Normalized() };
+	test = LocalToWorld(Vector3{ 0, 0, 1 }, n);
+
 
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < height; ++py)
@@ -58,11 +64,8 @@ void SoftwarePathTracer::Render()
 			if (did_hit)
 			{
 				shading_input = ConstructShadingInput(closest_hit_record);
-				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input);
+				final_color = ConstructFinalColor(vismod, closest_hit_record, shading_input, GetIndex(py, px, width));
 			}
-			
-			float u{ HashToFloat(LowBias(py * width + px)) };
-			final_color = { u, u, u };
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
@@ -80,7 +83,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 	const Factory<Primitive>& factory{ scene->primitives_factory };
 
 	Ray final_ray{ ray };
-	closest_hit.t = std::numeric_limits<float>::max();
+	closest_hit.t = std::numeric_limits<float>::max(); // can go down?
 
 	for (size_t i{}; i < scene->objects.size(); i++)
 	{
@@ -282,7 +285,7 @@ ColorRgba SoftwarePathTracer::DirectIllumination(
 }
 
 
-ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si)
+ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si, uint32_t pixel_index)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SceneObject& scene_object{ scene->objects[hit.object_index] };
@@ -297,10 +300,13 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 	case VisualizationMode::kNone:
 	{
-		color = DirectIllumination(si, surface_prop, material, scene);
+		//color = DirectIllumination(si, surface_prop, material, scene);
 
-		color = color.Tonemap(context_->debug_params.tone_map_operator);
-		color = color.ToSrgb();
+		//color = color.Tonemap(context_->debug_params.tone_map_operator);
+		//color = color.ToSrgb();
+		const float ao{ TraceAO(si, pixel_index) };
+		color = Vector3{ ao, ao, ao };
+
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -478,4 +484,53 @@ SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(TriangleM
 	Vector3 normal{ n0 * w + n1 * u + n2 * v };
 	Vector3 shadow_origin{ position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
 	return SurfaceSampleObjSpace{ normal, shadow_origin };
+}
+
+float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_index) const
+{
+	float sum{};
+	for (uint32_t index{}; index < ao_sample_count; ++index)
+	{
+		// multipliers need to be odd and coprime together
+		RayHitRecord hit{};
+		const uint32_t ao_seed{ pixel_index * 1973u + index * 6133u };
+
+		HemisphereSample sample{ UniformSampleHemisphere(si.world_normal, ao_seed) };
+
+		Ray ao_ray{
+			.origin = si.shadow_origin,
+			.direction = sample.direction,
+			.min = 0.001f,
+			.max = ao_radius
+		};
+
+		if (SceneClosestHitTest(ao_ray, hit, true)) continue;
+
+		const float pi{ static_cast<float>(std::numbers::pi) };
+		const float cos_theta{ std::max(0.f, Vector3::Dot(sample.direction, si.world_normal)) };
+		const float f{ cos_theta / pi };
+
+		if (sample.pdf > 0)
+			sum += f / sample.pdf;
+	}
+
+	return sum /= float(ao_sample_count);
+}
+
+HemisphereSample gfx::SoftwarePathTracer::UniformSampleHemisphere(const Vector3& normal, uint32_t seed)
+{
+	uint32_t h{ LowBias(seed) };
+	const float u1{ HashToFloat(h) };
+	h = LowBias(h);
+	const float u2{ HashToFloat(h) };
+
+	const float sin_theta{ sqrt((1 - u2 * u2)) };
+	const float pi{ static_cast<float>(std::numbers::pi) };
+	const float phi{ 2 * pi * u1 };
+
+	Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
+
+	return HemisphereSample{
+		.direction = LocalToWorld(local_dir, normal),
+		.pdf = 1 / (2 * pi) };
 }

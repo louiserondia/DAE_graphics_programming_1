@@ -20,6 +20,11 @@ namespace gfx
 		Vector3 shadow_origin{};
 	};
 
+	struct HemisphereSample
+	{
+		Vector3 direction{};
+		float pdf{}; // probablity density of that direction
+	};
 	//--- Software Path Tracer ---
 	class SoftwarePathTracer final : public Renderer
 	{
@@ -46,7 +51,7 @@ namespace gfx
 		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
 		ColorRgba CalculateRadiance(const Light* light, const Vector3& world_position) const;
-		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si);
+		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si, uint32_t pixel_index);
 		ColorRgba DirectIllumination(
 			const ShadingInput& shading_input,
 			const SurfaceProperties& sp,
@@ -60,11 +65,17 @@ namespace gfx
 		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Triangle& triangle, const RayHitRecord& hit);
 		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(TriangleMesh& mesh, const RayHitRecord& hit);
 
+		// AO
+
+		uint32_t ao_sample_count{ 32 };
+		float ao_radius{ 10.f };
+
+		float TraceAO(const ShadingInput& si, uint32_t pixel_index) const;
+		static HemisphereSample UniformSampleHemisphere(const Vector3& normal, uint32_t seed);
 
 	};
-
-	//uint32_t LowBias(uint32_t h);
-	//float HashToFloat(const uint32_t h);
-
 }
+
+// if function not recognized, verify im in gfx namespace
+
 #endif //SOFTWARE_PATH_TRACER_HEADER
