@@ -19,8 +19,7 @@ using Primitive = std::variant<Sphere, Plane, Triangle, TriangleMesh>;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{
-}
+{}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -103,18 +102,20 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const Factory<Primitive>& factory{ scene->primitives_factory };
 
-	Ray final_ray{ ray };
-	closest_hit.t = std::numeric_limits<float>::max(); // can go down?
+	// t_max gets shorter for every hit so we avoid further intersections
+	float t_max{ std::numeric_limits<float>::max() };
 
+	bool any_hit{};
 	for (size_t i{}; i < scene->objects.size(); i++)
 	{
 		bool did_hit{};
-		RayHitRecord temp_hit{};
 		SceneObject& object{ scene->objects[i] };
 		PrimitiveType primitive_type = factory.Get(object.primitive_index)->type;
 
+		Ray final_ray{ ray };
 		if (object.instance_transformation.has_value())
 			final_ray = object.instance_transformation->TransformRay(ray);
+		final_ray.max = std::min(t_max, final_ray.max);
 
 		switch (primitive_type)
 		{
@@ -122,34 +123,74 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		{
 			Sphere* sphere{ factory.GetAs<Sphere>(object.primitive_index) };
 
-			did_hit = HitTestSphere(*sphere, final_ray, temp_hit, ignore_record);
+			did_hit = HitTestSphere(*sphere, final_ray, closest_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kPlane:
 		{
 			Plane* plane{ factory.GetAs<Plane>(object.primitive_index) };
 
-			did_hit = HitTestPlane(*plane, final_ray, temp_hit, ignore_record);
+			did_hit = HitTestPlane(*plane, final_ray, closest_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kTriangle:
 		{
 			Triangle* triangle{ factory.GetAs<Triangle>(object.primitive_index) };
 
-			did_hit = HitTestTriangle(*triangle, final_ray, temp_hit, ignore_record);
+			did_hit = HitTestTriangle(*triangle, final_ray, closest_hit, ignore_record);
 			break;
 		}
 		case PrimitiveType::kTriangleMesh:
 		{
 			TriangleMesh* mesh{ factory.GetAs<TriangleMesh>(object.primitive_index) };
 
-			if (!mesh->bvh_nodes.size()) break;
+			if (mesh->bvh_nodes.empty()) break;
 
-			did_hit = BVHTraversal(0, final_ray, mesh, object.instance_transformation, ignore_record, temp_hit);
+			Triangle triangle{};
+			triangle.cull_mode = mesh->cull_mode;
 
-			// for shadow ray, we just want to know if sth hit, so return instantly
-			if (did_hit && ignore_record) return true;
+			uint32_t bvh_stack[64];
+			uint32_t stack_top{};
+			bvh_stack[stack_top] = 0; // root
+			++stack_top;
 
+			while (stack_top > 0)
+			{
+				--stack_top;
+				uint32_t node_index{ bvh_stack[stack_top] };
+				const BVHNode& node{ mesh->bvh_nodes[node_index] };
+
+				if (!HitTestAABB(node.bounds, final_ray)) continue;
+
+				if (node.IsLeaf())
+				{
+					const size_t end{ node.first_tri + node.tri_count };
+					for (size_t index_triangle{ node.first_tri }; index_triangle < end; ++index_triangle)
+					{
+						uint32_t mesh_index{ mesh->bvh_tri_indices[index_triangle] * 3 };
+						uint32_t index0{ mesh->indices[mesh_index] };
+						uint32_t index1{ mesh->indices[mesh_index + 1] };
+						uint32_t index2{ mesh->indices[mesh_index + 2] };
+
+						triangle.v0 = mesh->vertices[index0].position;
+						triangle.v1 = mesh->vertices[index1].position;
+						triangle.v2 = mesh->vertices[index2].position;
+
+						if (!HitTestTriangle(triangle, final_ray, closest_hit, ignore_record)) continue;
+
+						if (ignore_record) return true;
+
+						did_hit = true;
+						closest_hit.vertex_indices = { index0, index1, index2 };
+						final_ray.max = closest_hit.t;
+					}
+				}
+				else
+				{
+					bvh_stack[stack_top++] = node.left_child;
+					bvh_stack[stack_top++] = node.left_child + 1;
+				}
+			}
 			break;
 		}
 		case PrimitiveType::kNone:
@@ -157,18 +198,17 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 			break;
 		}
 
-		if (did_hit && ignore_record) return true;
+		if (!did_hit) continue;
+		if (ignore_record) return true;
 
-		if (did_hit && temp_hit.t < closest_hit.t)
-		{
-			closest_hit = temp_hit;
-			closest_hit.object_index = uint32_t(i);
-			final_ray.max = closest_hit.t;
-		}
+		if (primitive_type != PrimitiveType::kTriangleMesh)
+			closest_hit.vertex_indices.reset();
+
+		any_hit = true;
+		closest_hit.object_index = uint32_t(i);
+		t_max = closest_hit.t;
 	}
-
-	if (closest_hit.t < ray.max) return true;
-	return false;
+	return any_hit;
 }
 
 ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) const
@@ -220,8 +260,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	}
 	case PrimitiveType::kTriangleMesh:
 	{
+		// maybe dyn cast bc faster and were certain?
 		TriangleMesh* mesh{ factory.GetAs<TriangleMesh>(object.primitive_index) };
-		//const std::array<float, 3> weights{ w, u, v };
 
 		const auto& vertices_index{ *hit.vertex_indices };
 		const Vector3 p0{ mesh->vertices[vertices_index[0]].position };
@@ -321,10 +361,7 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 	case VisualizationMode::kNone:
 	{
-		//color = DirectIllumination(si, surface_prop, material, scene);
-
-		const float ao{ TraceAO(si, pixel_index) };
-		color = Vector3{ ao, ao, ao };
+		color = DirectIllumination(si, surface_prop, material, scene) * TraceAO(si, pixel_index);
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -369,61 +406,6 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	}
 
 	return color;
-}
-
-bool SoftwarePathTracer::BVHTraversal(
-	size_t node_index,
-	Ray& ray,
-	const TriangleMesh* mesh,
-	const std::optional<Matrix>& transform,
-	bool ignore_record,
-	RayHitRecord& best_hit) const
-{
-	const BVHNode& node{ mesh->bvh_nodes[node_index] };
-	const AABB& aabb{ node.bounds };
-
-	if (!HitTestAABB(aabb, ray))
-		return false;
-
-	bool did_hit{};
-	if (node.IsLeaf()) {
-		RayHitRecord closest_hit{};
-		const size_t end{ node.first_tri + node.tri_count };
-		for (size_t i{ node.first_tri }; i < end; i++)
-		{
-			uint32_t mesh_index{ mesh->bvh_tri_indices[i] * 3 };
-			uint32_t index0{ mesh->indices[mesh_index] };
-			uint32_t index1{ mesh->indices[mesh_index + 1] };
-			uint32_t index2{ mesh->indices[mesh_index + 2] };
-
-			Triangle triangle{
-				mesh->vertices[index0].position,
-				mesh->vertices[index1].position,
-				mesh->vertices[index2].position
-			};
-
-			if (!HitTestTriangle(triangle, ray, closest_hit, ignore_record)) continue;
-
-			if (ignore_record) return true;
-
-			if (closest_hit.t < best_hit.t)
-			{
-				did_hit = true;
-				closest_hit.vertex_indices = { index0, index1, index2 };
-				best_hit = closest_hit;
-				ray.max = closest_hit.t;
-			}
-		}
-		return did_hit;
-	}
-
-	auto left_child_index{ node.left_child };
-
-	// visit front child then back
-	bool left{ BVHTraversal(left_child_index, ray, mesh, transform, ignore_record, best_hit) };
-	bool right{ BVHTraversal(left_child_index + 1, ray, mesh, transform, ignore_record, best_hit) };
-
-	return left || right;
 }
 
 ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position) const
