@@ -10,6 +10,7 @@
 #include <limits>
 #include "../core/utils.h" // loulou
 #include <variant>
+#include <samplers.h>
 
 using namespace gfx;
 using Primitive = std::variant<Sphere, Plane, Triangle, TriangleMesh>;
@@ -30,7 +31,7 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
-	context_->debug_params.max_samples = 256;
+	context_->debug_params.max_samples = 32;
 
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SurfaceInfo& surface_info = context_->surface_info;
@@ -42,9 +43,11 @@ void SoftwarePathTracer::Render()
 	const Matrix& inverseViewMatrix{ viewMatrix.GetInverse() };
 	VisualizationMode vis_mode{ context_->debug_params.visualization_mode };
 	SamplingStrategy sampling_strategy{ context_->debug_params.sampling_strategy };
+	ToneMapOperator tone_map_operator{ context_->debug_params.tone_map_operator };
 
 	if (scene->scene_changed || accumulation_buffer_.size() != total_pixels ||
-		vis_mode != last_vis_mode_ || sampling_strategy != last_sampling_strategy_)
+		vis_mode != last_vis_mode_ || sampling_strategy != last_sampling_strategy_
+		|| tone_map_operator != last_tone_map_operator)
 	{
 		context_->debug_params.accumulated_samples = 0;
 		accumulation_buffer_.assign(total_pixels, ColorRgba{});
@@ -61,16 +64,19 @@ void SoftwarePathTracer::Render()
 	{
 		int px{ GetCol(pixel_index, width) };
 		int py{ GetRow(pixel_index, width) };
+		uint32_t hash_state{ LowBias(pixel_index ^ context_->debug_params.accumulated_samples) };
+		//SeedRng(hash_state);
 		Ray view_ray{ scene->camera.GetPosition() };
 		RayHitRecord closest_hit_record{};
 		ShadingInput shading_input{};
-		ColorRgba final_color{};
 
-		view_ray.direction = inverseViewMatrix * GetRayDirection(pixel_index, px, py, float(width), float(height));
+		// takes background color on miss
+		ColorRgba final_color{ scene->background_color };
+
+		view_ray.direction = inverseViewMatrix * GetRayDirection(pixel_index, px, py, float(width), float(height), hash_state);
 		view_ray.direction.Normalize();
 
-		bool did_hit{ SceneClosestHitTest(view_ray, closest_hit_record, false) };
-		if (did_hit)
+		if (SceneClosestHitTest(view_ray, closest_hit_record, false))
 		{
 			shading_input = ConstructShadingInput(closest_hit_record);
 			final_color = ConstructFinalColor(vis_mode, closest_hit_record, shading_input, pixel_index);
@@ -81,7 +87,7 @@ void SoftwarePathTracer::Render()
 			const float inv_frames{ 1.f / context_->debug_params.accumulated_samples };
 			accumulation_buffer_[pixel_index] += final_color;
 			final_color = accumulation_buffer_[pixel_index] * inv_frames;
-			final_color = final_color.Tonemap(context_->debug_params.tone_map_operator);
+			final_color = final_color.Tonemap(tone_map_operator);
 			final_color = final_color.ToSrgb();
 		}
 
@@ -346,12 +352,13 @@ ColorRgba SoftwarePathTracer::DirectIllumination(
 }
 
 
-ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si, uint32_t pixel_index)
+ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si, [[maybe_unused]] uint32_t pixel_index)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SceneObject& scene_object{ scene->objects[hit.object_index] };
 	const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
 	const SurfaceProperties surface_prop{ material->GetSurfaceProperties(si, scene->textures_factory) };
+
 	ColorRgba color{};
 
 	// either overwrites with normal texture or keeps the geometric normal
@@ -361,7 +368,8 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 	case VisualizationMode::kNone:
 	{
-		color = DirectIllumination(si, surface_prop, material, scene) * TraceAO(si, pixel_index);
+		color = DirectIllumination(si, surface_prop, material, scene)/* * TraceAO(si, pixel_index)*/;
+		//color = TraceAO(si, pixel_index);
 		break;
 	}
 	case VisualizationMode::kNormals:
@@ -425,13 +433,13 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	}
 }
 
-Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h)
+Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t hash_state)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const float aspect_ratio{ w / h };
 	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
 
-	const Vector2 jitter{ GenerateSubpixelJitter(pixel_index) };
+	const Vector2 jitter{ GenerateSubpixelJitter(pixel_index, hash_state) };
 
 	const float x{ (2.f * ((float(px) + jitter.x) / w) - 1.f) * aspect_ratio * fov };
 	const float y{ (1.f - 2.f * ((float(py) + jitter.y) / h)) * fov };
@@ -493,13 +501,13 @@ float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_in
 	{
 		// multipliers need to be odd and coprime together
 		RayHitRecord hit{};
-		const uint32_t ao_seed{ pixel_index * 1973u + index * 6133u + context_->debug_params.accumulated_samples * 2654435761u };
+		uint32_t ao_seed{ pixel_index * 1973u + index * 6133u + context_->debug_params.accumulated_samples * 2654435761u };
 
 		bool use_uniform{ context_->debug_params.sampling_strategy == SamplingStrategy::kUniform };
 
 		HemisphereSample sample{ use_uniform ?
-			UniformSampleHemisphere(si.world_normal, ao_seed) :
-			CosineSampleHemisphere(si.world_normal, ao_seed) };
+			SampleUniformHemisphere(si.world_normal, ao_seed) :
+			SampleCosineHemisphere(si.world_normal, ao_seed) };
 
 		Ray ao_ray{
 			.origin = si.shadow_origin,
@@ -521,51 +529,17 @@ float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_in
 	return sum /= float(ao_sample_count);
 }
 
-HemisphereSample gfx::SoftwarePathTracer::UniformSampleHemisphere(const Vector3& normal, uint32_t seed)
+Vector2 gfx::SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index, uint32_t hash_state) const
 {
-	uint32_t h{ LowBias(seed) };
-	const float u1{ HashToFloat(h) };
-	h = LowBias(h);
-	const float u2{ HashToFloat(h) };
+	(void)pixel_index;
+	float jx{ NextFloat(hash_state) };
+	float jy{ NextFloat(hash_state) };
+	//const uint32_t frame{ context_->debug_params.accumulated_samples };
+	//const uint32_t frame_hash{ LowBias(frame) };
+	//uint32_t h{ pixel_index ^ frame_hash };
+	//float jx{ HashToFloat(h) };
+	//h = LowBias(h);
 
-	const float sin_theta{ sqrt((1 - u2 * u2)) };
-	const float pi{ static_cast<float>(std::numbers::pi) };
-	const float phi{ 2 * pi * u1 };
-
-	Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
-
-	return HemisphereSample{
-		.direction = LocalToWorld(local_dir, normal),
-		.pdf = 1 / (2 * pi) };
-} // question says in the slide to not reduce ourselves, but in the slide ao formula looks more opti by simplifying p
-
-// faire fonction pour f (weight)
-
-HemisphereSample gfx::SoftwarePathTracer::CosineSampleHemisphere(const Vector3& normal, uint32_t seed)
-{
-	uint32_t h{ LowBias(seed) };
-	const float u1{ HashToFloat(h) };
-	h = LowBias(h);
-	const float u2{ HashToFloat(h) };
-
-	const float sin_theta{ sqrt((1 - u2 * u2)) };
-	const float pi{ static_cast<float>(std::numbers::pi) };
-	const float phi{ 2 * pi * u1 };
-
-	Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
-
-	return HemisphereSample{
-		.direction = LocalToWorld(local_dir, normal),
-		.pdf = u2 / pi };
-}
-
-Vector2 gfx::SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index) const
-{
-	const uint32_t frame{ context_->debug_params.accumulated_samples };
-	const uint32_t frame_hash{ LowBias(frame) };
-	uint32_t h{ pixel_index ^ frame_hash };
-	float jx{ HashToFloat(h) };
-	h = LowBias(h);
-
-	return Vector2(jx, HashToFloat(h));
+	return Vector2(jx, jy);
+	//return Vector2(jx, HashToFloat(h));
 }
