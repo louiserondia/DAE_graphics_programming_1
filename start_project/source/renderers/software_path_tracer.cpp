@@ -20,7 +20,8 @@ using Primitive = std::variant<Sphere, Plane, Triangle, TriangleMesh>;
 // =============================================================================
 SoftwarePathTracer::SoftwarePathTracer(Context* const context)
 	: Renderer(context)
-{}
+{
+}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -64,7 +65,7 @@ void SoftwarePathTracer::Render()
 	{
 		int px{ GetCol(pixel_index, width) };
 		int py{ GetRow(pixel_index, width) };
-		uint32_t hash_state{ LowBias(pixel_index ^ context_->debug_params.accumulated_samples) };
+		uint32_t hash_state{ LowBias(pixel_index ^ (context_->debug_params.accumulated_samples * 2654435761u)) };
 		//SeedRng(hash_state);
 		Ray view_ray{ scene->camera.GetPosition() };
 		RayHitRecord closest_hit_record{};
@@ -76,22 +77,25 @@ void SoftwarePathTracer::Render()
 		view_ray.direction = inverseViewMatrix * GetRayDirection(pixel_index, px, py, float(width), float(height), hash_state);
 		view_ray.direction.Normalize();
 
-		if (SceneClosestHitTest(view_ray, closest_hit_record, false))
-		{
-			shading_input = ConstructShadingInput(closest_hit_record);
-			final_color = ConstructFinalColor(vis_mode, closest_hit_record, shading_input, pixel_index);
-		}
 
 		if (!is_debug_view)
 		{
+			final_color = TracePath(view_ray, scene, hash_state);
+
 			const float inv_frames{ 1.f / context_->debug_params.accumulated_samples };
 			accumulation_buffer_[pixel_index] += final_color;
 			final_color = accumulation_buffer_[pixel_index] * inv_frames;
 			final_color = final_color.Tonemap(tone_map_operator);
 			final_color = final_color.ToSrgb();
 		}
+		else if (SceneClosestHitTest(view_ray, closest_hit_record, false))
+		{
+			shading_input = ConstructShadingInput(closest_hit_record);
+			final_color = ConstructFinalColor(vis_mode, closest_hit_record, shading_input, pixel_index);
+		}
 
 		final_color.Clamp();
+
 		// Write to surface
 		surface_info.pixel_buffer[px + (py * width)] = SDL_MapRGB(
 			surface_info.pixel_format_details, nullptr,
@@ -313,45 +317,6 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return si;
 }
 
-// question: couldnt we optimise by not even testing if our current closest hit distance in the scene is smaller than the BVHNode ?
-
-ColorRgba SoftwarePathTracer::DirectIllumination(
-	const ShadingInput& shading_input,
-	const SurfaceProperties& sp,
-	const Material* material,
-	const Scene* scene) const
-{
-	ColorRgba result{};
-	ShadingInput si{ shading_input };
-
-	for (const Light* light : scene->lights_factory.GetAll())
-	{
-		Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
-		const float light_distance{ light_dir.Normalize() };
-		si.light_direction = light_dir;
-
-		// lambert's cosine law : lights below horizon dont contribute
-		const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
-		if (cos_theta <= 0) continue;
-
-		const Ray shadow_ray{
-			.origin = si.shadow_origin,
-			.direction = light_dir,
-			.min = 0.001f,
-			.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
-		};
-		RayHitRecord shadow_hit{};
-
-		if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
-			continue;
-
-		const ColorRgba brdf{ material->Shade(si, sp) };
-		result += cos_theta * brdf * CalculateRadiance(light, si.world_position);
-	}
-	return result;
-}
-
-
 ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismod, const RayHitRecord& hit, ShadingInput& si, [[maybe_unused]] uint32_t pixel_index)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
@@ -368,6 +333,7 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	{
 	case VisualizationMode::kNone:
 	{
+
 		color = DirectIllumination(si, surface_prop, material, scene)/* * TraceAO(si, pixel_index)*/;
 		//color = TraceAO(si, pixel_index);
 		break;
@@ -416,6 +382,102 @@ ColorRgba SoftwarePathTracer::ConstructFinalColor(const VisualizationMode& vismo
 	return color;
 }
 
+ColorRgba SoftwarePathTracer::DirectIllumination(
+	const ShadingInput& shading_input,
+	const SurfaceProperties& sp,
+	const Material* material,
+	const Scene* scene) const
+{
+	ColorRgba result{};
+	ShadingInput si{ shading_input };
+
+	for (const Light* light : scene->lights_factory.GetAll())
+	{
+		Vector3 light_dir{ light->type == LightType::kDirectional ? -light->direction : light->origin - si.world_position };
+		const float light_distance{ light_dir.Normalize() };
+		si.light_direction = light_dir;
+
+		// lambert's cosine law : lights below horizon dont contribute
+		const float cos_theta{ Vector3::Dot(si.world_normal, light_dir) };
+		if (cos_theta <= 0) continue;
+
+		const Ray shadow_ray{
+			.origin = si.shadow_origin,
+			.direction = light_dir,
+			.min = 0.001f,
+			.max = light->type == LightType::kDirectional ? std::numeric_limits<float>::max() : light_distance
+		};
+		RayHitRecord shadow_hit{};
+
+		if (SceneClosestHitTest(shadow_ray, shadow_hit, true)) // light hits another object before reaching our point
+			continue;
+
+		const ColorRgba brdf{ material->Shade(si, sp) };
+		result += cos_theta * brdf * CalculateRadiance(light, si.world_position);
+		//result = ColorRgba::Red();
+	}
+	return result;
+}
+
+
+// Indirect Lighting
+
+ColorRgba SoftwarePathTracer::TracePath(const Ray& ray, const Scene* scene, uint32_t& hash_state, int max_bounces) const
+{
+	ColorRgba accumulated_color{};
+	ColorRgba throughput{ ColorRgba::White() };
+	Ray current_ray{ ray };
+	int bounce{};
+
+	for (; bounce < max_bounces; ++bounce)
+	{
+		RayHitRecord hit{};
+		if (!SceneClosestHitTest(current_ray, hit))
+		{
+			// ray left the scene
+			accumulated_color += scene->background_color * throughput;
+			break;
+		}
+
+		ShadingInput si{ ConstructShadingInput(hit) };
+		const SceneObject& scene_object{ scene->objects[hit.object_index] };
+		const Material* material{ scene->materials_factory.Get(scene_object.material_index) };
+		const SurfaceProperties sp{ material->GetSurfaceProperties(si, scene->textures_factory) };
+
+		accumulated_color += throughput * DirectIllumination(si, sp, material, scene);
+
+		bool use_uniform{ context_->debug_params.sampling_strategy == SamplingStrategy::kUniform };
+		HemisphereSample sample{ use_uniform ?
+			SampleUniformHemisphere(si.world_normal, hash_state)
+			: SampleCosineHemisphere(si.world_normal, hash_state) };
+
+		float cos_theta{ Vector3::Dot(sample.direction, si.world_normal) };
+		// below surface or pdf impossible
+		if (cos_theta < 0.f || sample.pdf <= 0.f)
+			break;
+
+		si.light_direction = sample.direction;
+		const ColorRgba brdf{ material->Shade(si, sp) };
+
+		BounceSample bounce_sample{};
+		bounce_sample.direction = sample.direction;
+		bounce_sample.color_weight = brdf * cos_theta / sample.pdf;
+
+		throughput *= bounce_sample.color_weight;
+
+		current_ray = Ray{
+			.origin = si.shadow_origin,
+			.direction = sample.direction,
+			.min = 0.001f,
+			.max = std::numeric_limits<float>::max()
+		};
+
+		if (context_->debug_params.visualization_mode != VisualizationMode::kNone) break;
+	}
+	return accumulated_color;
+}
+
+
 ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector3& world_position) const
 {
 	switch (light->type)
@@ -433,11 +495,11 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	}
 }
 
-Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t hash_state)
+Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t& hash_state)
 {
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const float aspect_ratio{ w / h };
-	const float fov{ tanf(scene->camera.GetFovAngle() / 2) };
+	const float fov{ tanf((scene->camera.GetFovAngle() * float(std::numbers::pi) / 180.f) / 2) };
 
 	const Vector2 jitter{ GenerateSubpixelJitter(pixel_index, hash_state) };
 
@@ -445,53 +507,6 @@ Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py
 	const float y{ (1.f - 2.f * ((float(py) + jitter.y) / h)) * fov };
 
 	return Vector4{ x, y, 1.f, 0.f };
-}
-
-SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(Sphere& sphere, const RayHitRecord& hit)
-{
-	const Vector3 position{ hit.ray.origin + hit.t * hit.ray.direction };
-
-	Vector3 normal{ (position - sphere.origin) / sphere.radius };
-	return SurfaceSampleObjSpace{ normal, position };
-}
-
-SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(Plane& plane, const RayHitRecord& hit)
-{
-	const Vector3 position{ hit.ray.origin + hit.t * hit.ray.direction };
-
-	return SurfaceSampleObjSpace{ plane.normal, position };
-}
-
-SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(Triangle& triangle, const RayHitRecord& hit)
-{
-	const Vector3 position{ hit.ray.origin + hit.t * hit.ray.direction };
-
-	return SurfaceSampleObjSpace{ triangle.normal, position };
-}
-
-SurfaceSampleObjSpace SoftwarePathTracer::ComputeNormalAndShadowOrigin(TriangleMesh& mesh, const RayHitRecord& hit)
-{
-	const Vector3 position{ hit.ray.origin + hit.t * hit.ray.direction };
-
-	const auto& vertices_index{ *hit.vertex_indices };
-	const Vector3 p0{ mesh.vertices[vertices_index[0]].position };
-	const Vector3 p1{ mesh.vertices[vertices_index[1]].position };
-	const Vector3 p2{ mesh.vertices[vertices_index[2]].position };
-	const Vector3 n0{ *mesh.vertices[vertices_index[0]].normal };
-	const Vector3 n1{ *mesh.vertices[vertices_index[1]].normal };
-	const Vector3 n2{ *mesh.vertices[vertices_index[2]].normal };
-
-	const float u{ hit.barycentric_coordinates->x };
-	const float v{ hit.barycentric_coordinates->y };
-	const float w{ 1.f - u - v };
-
-	float dotw = std::min(0.f, Vector3::Dot(position - p0, n0));
-	float dotu = std::min(0.f, Vector3::Dot(position - p1, n1));
-	float dotv = std::min(0.f, Vector3::Dot(position - p2, n2));
-
-	Vector3 normal{ n0 * w + n1 * u + n2 * v };
-	Vector3 shadow_origin{ position - (w * dotw * n0 + u * dotu * n1 + v * dotv * n2) };
-	return SurfaceSampleObjSpace{ normal, shadow_origin };
 }
 
 float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_index) const
@@ -529,7 +544,7 @@ float gfx::SoftwarePathTracer::TraceAO(const ShadingInput& si, uint32_t pixel_in
 	return sum /= float(ao_sample_count);
 }
 
-Vector2 gfx::SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index, uint32_t hash_state) const
+Vector2 gfx::SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index, uint32_t& hash_state) const
 {
 	(void)pixel_index;
 	float jx{ NextFloat(hash_state) };

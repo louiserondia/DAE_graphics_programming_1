@@ -71,7 +71,7 @@ namespace gfx
 	{
 		const float pi{ static_cast<float>(std::numbers::pi) };
 		const float dot{ Vector3::Dot(normal, direction) };
-		
+
 		if (dot < 0.f) return 0.f;
 		return 1 / (2 * pi);
 	}
@@ -92,12 +92,13 @@ namespace gfx
 		const float u1{ NextFloat(hash_state) };
 		const float u2{ NextFloat(hash_state) };
 
+		// cos_theta = u2
 		const float sin_theta{ sqrt((1 - u2 * u2)) };
 		const float pi{ static_cast<float>(std::numbers::pi) };
 		const float phi{ 2 * pi * u1 };
 
 		const Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
-		const Vector3 direction{ LocalToWorld(local_dir, normal) };
+		const Vector3 direction{ LocalToWorld(local_dir, normal).Normalized() };
 
 		return HemisphereSample{
 			.direction = direction,
@@ -112,13 +113,13 @@ namespace gfx
 		const float u1{ NextFloat(hash_state) };
 		const float u2{ NextFloat(hash_state) };
 
+		const float cos_theta{ sqrt(1 - u2) };
+		const float sin_theta{ sqrt(u2) };
 		const float pi{ static_cast<float>(std::numbers::pi) };
-		const float sin_theta{ sqrt((1 - u2 * u2)) };
 		const float phi{ 2 * pi * u1 };
 
-		// verify in .pdf if cos_theta (u2) should be sqrt(u2) and if sin_theta is correct
-		Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), u2 };
-		const Vector3 direction{ LocalToWorld(local_dir, normal) };
+		Vector3 local_dir{ sin_theta * cos(phi), sin_theta * sin(phi), cos_theta };
+		const Vector3 direction{ LocalToWorld(local_dir, normal).Normalized() };
 
 		return HemisphereSample{
 			.direction = direction,

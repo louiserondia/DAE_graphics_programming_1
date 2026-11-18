@@ -14,10 +14,10 @@
 
 namespace gfx
 {
-	struct SurfaceSampleObjSpace
+	struct BounceSample
 	{
-		Vector3 normal{};
-		Vector3 shadow_origin{};
+		Vector3 direction{};
+		ColorRgba color_weight{};
 	};
 
 	//--- Software Path Tracer ---
@@ -54,12 +54,8 @@ namespace gfx
 			const Material* material,
 			const Scene* scene) const;
 
-		Vector4 GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t hash_state);
-
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Sphere& sphere, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Plane& plane, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(Triangle& triangle, const RayHitRecord& hit);
-		SurfaceSampleObjSpace ComputeNormalAndShadowOrigin(TriangleMesh& mesh, const RayHitRecord& hit);
+		ColorRgba TracePath(const Ray& ray, const Scene* scene, uint32_t& hash_state, int max_bounces = 8) const;
+		Vector4 GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t& hash_state);
 
 		// AO
 
@@ -68,7 +64,7 @@ namespace gfx
 
 		float TraceAO(const ShadingInput& si, uint32_t pixel_index) const;
 
-		Vector2 GenerateSubpixelJitter(uint32_t pixel_index, uint32_t hash_state) const;
+		Vector2 GenerateSubpixelJitter(uint32_t pixel_index, uint32_t& hash_state) const;
 
 	private:
 		VisualizationMode last_vis_mode_{ VisualizationMode::kNone };

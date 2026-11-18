@@ -181,7 +181,8 @@ namespace gfx
 	{
 		float light_time{ 0.f };
 		uint32_t light_index{ 0 };
-		bool rotating_lights{ true };
+		//bool rotating_lights{ true };
+		bool rotating_lights{ 0 };
 
 		void Setup() override
 		{
@@ -206,7 +207,7 @@ namespace gfx
 
 			// Load bunny mesh
 			AssetLoader loader{};
-			loader.Load("resources/models/bunny/lowpoly_bunny.obj",
+			loader.Load("../../../../resources/models/bunny/lowpoly_bunny.obj",
 				*this, false, mat_white, false);
 			objects.at(0).instance_transformation =
 				Matrix::CreateRotationY(static_cast<float>(std::numbers::pi)) * Matrix::CreateScale(2.f, 2.f, 2.f);
