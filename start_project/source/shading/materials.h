@@ -307,7 +307,12 @@ namespace gfx
 				sp.roughness,
 				sp.f0
 				) };
+			
+			//fraction of light that goes into diffuse lobe (schlick give how much bounces of the surface, rest enters the material)
+			// if metal, electrons absorb all of it so kd is 0
 			ColorRgba kd{ ColorRgba::White() - FresnelFunction_Schlick(half_vector, input.view_direction, sp.f0) };
+			if (sp.metallic > 0.f)
+				kd = 0.f;
 			// could compute Fresnel only once
 
 			return Lambert(kd, sp.albedo) + specular;

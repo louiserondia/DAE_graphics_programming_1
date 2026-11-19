@@ -47,6 +47,7 @@ namespace gfx
 		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record = false) const;
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
 		ColorRgba CalculateRadiance(const Light* light, const Vector3& world_position) const;
+		static ColorRgba EnvironmentRadiance(const Scene* scene, const Vector3& direction);
 		ColorRgba ConstructFinalColor(const VisualizationMode& vm, const RayHitRecord& hit, ShadingInput& si, uint32_t pixel_index);
 		ColorRgba DirectIllumination(
 			const ShadingInput& shading_input,

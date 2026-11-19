@@ -32,7 +32,7 @@ SoftwarePathTracer::~SoftwarePathTracer() = default;
 void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
-	context_->debug_params.max_samples = 32;
+	//context_->debug_params.max_samples = 32;
 
 	Scene* scene{ context_->scene_manager->GetActiveScene() };
 	const SurfaceInfo& surface_info = context_->surface_info;
@@ -54,11 +54,15 @@ void SoftwarePathTracer::Render()
 		accumulation_buffer_.assign(total_pixels, ColorRgba{});
 		last_vis_mode_ = vis_mode;
 		last_sampling_strategy_ = sampling_strategy;
+		last_tone_map_operator = tone_map_operator;
 	}
 	bool is_debug_view{ vis_mode != VisualizationMode::kNone && vis_mode != VisualizationMode::kDirectOnly };
 
 	if (!is_debug_view && context_->debug_params.accumulated_samples >= context_->debug_params.max_samples)
 		return;
+
+	if (!is_debug_view)
+		++context_->debug_params.accumulated_samples;
 
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int pixel_index{}; pixel_index < total_pixels; ++pixel_index)
@@ -66,13 +70,11 @@ void SoftwarePathTracer::Render()
 		int px{ GetCol(pixel_index, width) };
 		int py{ GetRow(pixel_index, width) };
 		uint32_t hash_state{ LowBias(pixel_index ^ (context_->debug_params.accumulated_samples * 2654435761u)) };
-		//SeedRng(hash_state);
 		Ray view_ray{ scene->camera.GetPosition() };
 		RayHitRecord closest_hit_record{};
 		ShadingInput shading_input{};
 
-		// takes background color on miss
-		ColorRgba final_color{ scene->background_color };
+		ColorRgba final_color{};
 
 		view_ray.direction = inverseViewMatrix * GetRayDirection(pixel_index, px, py, float(width), float(height), hash_state);
 		view_ray.direction.Normalize();
@@ -103,8 +105,6 @@ void SoftwarePathTracer::Render()
 			uint8_t(final_color.g * 255),
 			uint8_t(final_color.b * 255));
 	}
-	if (!is_debug_view)
-		++context_->debug_params.accumulated_samples;
 }
 
 bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
@@ -435,7 +435,7 @@ ColorRgba SoftwarePathTracer::TracePath(const Ray& ray, const Scene* scene, uint
 		if (!SceneClosestHitTest(current_ray, hit))
 		{
 			// ray left the scene
-			accumulated_color += scene->background_color * throughput;
+			accumulated_color += throughput * EnvironmentRadiance(scene, current_ray.direction);
 			break;
 		}
 
@@ -493,6 +493,26 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(const Light* light, const Vector
 	default:
 		return ColorRgba{};
 	}
+}
+
+ColorRgba gfx::SoftwarePathTracer::EnvironmentRadiance(const Scene* scene, const Vector3& direction)
+{
+	if (!scene->environment_map.has_value())
+		return scene->background_color;
+
+	const auto& env{ scene->environment_map.value() };
+
+	Vector3 dir{ direction };
+	if (env.flip_horizontal)
+		dir.x = -dir.x;
+	if (env.rotation_degrees != 0.f)
+	{
+		const float rot_rad = env.rotation_degrees * float(std::numbers::pi) / 180.f;
+		dir = Vector3{ dir.x * cos(rot_rad) - dir.z * sin(rot_rad) , dir.y, dir.x * sin(rot_rad) + dir.z * cos(rot_rad) };
+	}
+
+	//return ColorRgba::White();
+	return env.texture.SampleDirection(dir) * env.intensity;
 }
 
 Vector4 SoftwarePathTracer::GetRayDirection(uint32_t pixel_index, int px, int py, float w, float h, uint32_t& hash_state)

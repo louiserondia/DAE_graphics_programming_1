@@ -115,11 +115,6 @@ namespace gfx
 		float denominator{ (4 * std::max(Vector3::Dot(v, n), 0.f) * std::max(Vector3::Dot(l, n), 0.f)) };
 
 		ColorRgba res{ (D * F * G) / std::max(denominator, 0.0001f) };
-		if (res.r < 0.f) {
-		//if (res.r >= 0.3f) {
-			//res = ColorRgba::Black();
-			std::cout << res.r << std::endl;
-		}
 		return res;
 	}
 }
